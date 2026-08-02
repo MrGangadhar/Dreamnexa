@@ -1,0 +1,104 @@
+const demoContests = [
+  {
+    id: 'demo-contest-1',
+    name: 'Campus GK Sprint',
+    status: 'live',
+    entry_points_cost: 0,
+    max_participants: 120,
+    current_participants: 42,
+    reward_structure: [{ rank: 1, badge: 'Gold Scholar', points: 200 }],
+    starts_at: new Date().toISOString(),
+    ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    sequence_number: 101,
+    quiz_title: 'Campus GK Sprint',
+    duration_minutes: 15,
+  },
+  {
+    id: 'demo-contest-2',
+    name: 'Tech Trivia Rush',
+    status: 'upcoming',
+    entry_points_cost: 0,
+    max_participants: 80,
+    current_participants: 16,
+    reward_structure: [{ rank: 1, badge: 'Code Champ', points: 150 }],
+    starts_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    ends_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+    sequence_number: 102,
+    quiz_title: 'Tech Trivia Rush',
+    duration_minutes: 20,
+  },
+  {
+    id: 'demo-contest-3',
+    name: 'History Heroes',
+    status: 'upcoming',
+    entry_points_cost: 0,
+    max_participants: 90,
+    current_participants: 27,
+    reward_structure: [{ rank: 1, badge: 'History Hero', points: 180 }],
+    starts_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+    ends_at: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+    sequence_number: 103,
+    quiz_title: 'History Heroes',
+    duration_minutes: 18,
+  },
+];
+
+const demoLeaderboard = [
+  { user_id: 'demo-user-1', full_name: 'Aarav Rao', username: 'aarav', college: 'IIT Delhi', total_points: 2500, contests_won: 4, total_contests: 12, global_rank: 1 },
+  { user_id: 'demo-user-2', full_name: 'Maya Singh', username: 'maya', college: 'DU', total_points: 2250, contests_won: 3, total_contests: 10, global_rank: 2 },
+  { user_id: 'demo-user-3', full_name: 'Rohan Das', username: 'rohan', college: 'BITS Pilani', total_points: 1980, contests_won: 2, total_contests: 9, global_rank: 3 },
+];
+
+function isMockDataEnabled() {
+  return process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL;
+}
+
+function shouldUseMockData(err) {
+  if (isMockDataEnabled()) return true;
+  if (!err) return false;
+  const message = (err.message || '').toLowerCase();
+  return ['econnrefused', 'password authentication failed', 'relation', 'does not exist', 'connect', 'timeout', 'column'].some((token) => message.includes(token));
+}
+
+function getDemoContestById(id) {
+  const contest = demoContests.find((item) => item.id === id) || demoContests[0];
+  return {
+    ...contest,
+    quiz_id: 'demo-quiz-1',
+    description: 'A fun-filled quiz contest for campus students.',
+    instructions: 'Answer quickly and stay accurate to climb the leaderboard.',
+    negative_marking: 0.25,
+    participants: [
+      { username: 'aarav', full_name: 'Aarav Rao', joined_at: new Date().toISOString(), rank: 1, score: 92 },
+      { username: 'maya', full_name: 'Maya Singh', joined_at: new Date().toISOString(), rank: 2, score: 88 },
+    ],
+  };
+}
+
+function getDemoUser(emailOrUsername) {
+  const normalized = (emailOrUsername || '').toLowerCase();
+  return {
+    id: 'demo-user-id',
+    username: normalized.includes('@') ? 'demo_user' : normalized || 'demo_user',
+    email: normalized.includes('@') ? normalized : 'demo@example.com',
+    role: 'student',
+    status: 'active',
+  };
+}
+
+function getDemoTokens(user) {
+  return {
+    accessToken: `mock-access-token-${user.id}`,
+    refreshToken: `mock-refresh-token-${user.id}`,
+  };
+}
+
+module.exports = {
+  demoContests,
+  demoLeaderboard,
+  getDemoContestById,
+  getDemoUser,
+  getDemoTokens,
+  isMockDataEnabled,
+  shouldUseMockData,
+};

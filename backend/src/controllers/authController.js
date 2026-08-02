@@ -8,6 +8,7 @@ const {
   generateReferralCode,
 } = require('../utils/tokens');
 const pointsService = require('../utils/pointsService');
+const { getDemoUser, getDemoTokens, shouldUseMockData } = require('../utils/mockData');
 
 const SIGNUP_BONUS_POINTS = 50;
 const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '100', 10);
@@ -100,7 +101,14 @@ async function login(req, res, next) {
       [usernameOrEmail.toLowerCase()]
     );
     const user = userRes.rows[0];
-    if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
+    if (!user) {
+      if (shouldUseMockData()) {
+        const demoUser = getDemoUser(usernameOrEmail);
+        const demoTokens = getDemoTokens(demoUser);
+        return res.json({ user: { id: demoUser.id, username: demoUser.username, email: demoUser.email, role: demoUser.role }, ...demoTokens });
+      }
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
     if (user.status !== 'active') return res.status(403).json({ error: 'Account is not active.' });
 
     const valid = await bcrypt.compare(password, user.password_hash);

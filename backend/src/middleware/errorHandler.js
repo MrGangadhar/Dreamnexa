@@ -7,13 +7,13 @@ function errorHandler(err, req, res, next) {
   console.error(err);
 
   if (err.code === '23505') {
-    // Postgres unique violation
     return res.status(409).json({ error: 'A record with these details already exists.' });
   }
 
   const status = err.status || 500;
   res.status(status).json({
     error: err.publicMessage || 'Something went wrong. Please try again.',
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined,
   });
 }
 

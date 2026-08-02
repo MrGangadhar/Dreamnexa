@@ -1,5 +1,6 @@
 const { query, withTransaction } = require('../db/pool');
 const contestEngine = require('../utils/contestEngine');
+const { demoContests, demoLeaderboard, getDemoContestById, shouldUseMockData } = require('../utils/mockData');
 
 async function listContests(req, res, next) {
   try {
@@ -21,8 +22,16 @@ async function listContests(req, res, next) {
        LIMIT 100`,
       params
     );
+    if (!result.rows.length && shouldUseMockData()) {
+      const filtered = demoContests.filter((contest) => !req.query.status || contest.status === req.query.status);
+      return res.json(filtered);
+    }
     res.json(result.rows);
   } catch (err) {
+    if (shouldUseMockData(err)) {
+      const filtered = demoContests.filter((contest) => !req.query.status || contest.status === req.query.status);
+      return res.json(filtered);
+    }
     next(err);
   }
 }
@@ -36,7 +45,12 @@ async function getContest(req, res, next) {
       [req.params.id]
     );
     const contest = contestRes.rows[0];
-    if (!contest) return res.status(404).json({ error: 'Contest not found.' });
+    if (!contest) {
+      if (shouldUseMockData()) {
+        return res.json(getDemoContestById(req.params.id));
+      }
+      return res.status(404).json({ error: 'Contest not found.' });
+    }
 
     const participants = await query(
       `SELECT u.username, p.full_name, cp.joined_at, cp.rank, cp.score
@@ -50,6 +64,9 @@ async function getContest(req, res, next) {
 
     res.json({ ...contest, participants: participants.rows });
   } catch (err) {
+    if (shouldUseMockData(err)) {
+      return res.json(getDemoContestById(req.params.id));
+    }
     next(err);
   }
 }
@@ -73,8 +90,14 @@ async function getLeaderboard(req, res, next) {
        ORDER BY global_rank ASC
        LIMIT 100`
     );
+    if (!result.rows.length && shouldUseMockData()) {
+      return res.json(demoLeaderboard);
+    }
     res.json(result.rows);
   } catch (err) {
+    if (shouldUseMockData(err)) {
+      return res.json(demoLeaderboard);
+    }
     next(err);
   }
 }

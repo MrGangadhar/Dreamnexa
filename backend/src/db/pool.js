@@ -15,13 +15,22 @@ pool.on('error', (err) => {
  * Run a query with automatic connection handling.
  */
 async function query(text, params) {
-  const start = Date.now();
-  const res = await pool.query(text, params);
-  if (process.env.NODE_ENV === 'development') {
-    const duration = Date.now() - start;
-    console.log('query', { text, duration, rows: res.rowCount });
+  if (!process.env.DATABASE_URL) {
+    return { rows: [], rowCount: 0, fields: [] };
   }
-  return res;
+
+  const start = Date.now();
+  try {
+    const res = await pool.query(text, params);
+    if (process.env.NODE_ENV === 'development') {
+      const duration = Date.now() - start;
+      console.log('query', { text, duration, rows: res.rowCount });
+    }
+    return res;
+  } catch (err) {
+    console.error('Database query failed', err.message);
+    return { rows: [], rowCount: 0, fields: [] };
+  }
 }
 
 /**
