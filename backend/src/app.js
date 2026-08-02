@@ -14,9 +14,25 @@ const newsRoutes = require('./routes/newsRoutes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://dreamnexa.vercel.app',
+  'https://www.dreamnexa.vercel.app',
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : [])
+].filter(Boolean);
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || '*', credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
