@@ -1,0 +1,11 @@
+{
+  "name": "dreamnexa-root",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix backend",
+    "start": "npm start --prefix backend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
