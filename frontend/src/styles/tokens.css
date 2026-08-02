@@ -1,0 +1,61 @@
+/*
+  QuizArena — Professional Light Theme Design Tokens
+  Clean typography, subtle shadows, and Dream11-inspired professional layout.
+*/
+
+:root {
+  /* ── Backgrounds ──────────────────────────────────── */
+  --bg-primary:   #F8F9FA;   /* very light gray for page background */
+  --bg-card:      #FFFFFF;   /* pure white for cards and surfaces */
+  --bg-raised:    #F1F3F5;   /* slightly elevated/hover surface */
+  --bg-modal:     rgba(33, 37, 41, 0.5); /* modal overlay bg */
+  --bg-input:     #FFFFFF;   /* input field bg */
+
+  /* ── Text ─────────────────────────────────────────── */
+  --text-primary: #212529;   /* deep charcoal for maximum readability */
+  --text-secondary: #6C757D; /* muted gray for secondary text */
+  --text-muted:   #ADB5BD;   /* very light text (placeholders, disabled) */
+  --text-accent:  #C8102E;   /* Dream11 style red/crimson */
+  --text-inverse: #FFFFFF;   /* white text on dark buttons */
+
+  /* ── Accents ──────────────────────────────────────── */
+  --accent:          #C8102E;  /* primary action color (red/crimson) */
+  --accent-hover:    #A30D25;
+  --accent-glow:     rgba(200, 16, 46, 0.2);
+  
+  --accent-blue:     #0D6EFD;  /* secondary action / info */
+  --accent-blue-soft:rgba(13, 110, 253, 0.1);
+  
+  --accent-yellow:   #F5A623;  /* gold winnings/points */
+  --accent-yellow-soft: rgba(245, 166, 35, 0.15);
+  
+  --accent-green:    #198754;  /* live / success / active */
+  --accent-green-soft: rgba(25, 135, 84, 0.1);
+
+  /* ── Borders & Lines ──────────────────────────────── */
+  --border:       #DEE2E6;   /* standard subtle border */
+  --border-light: #E9ECEF;   /* very faint border */
+  --border-dark:  #CED4DA;   /* slightly stronger border for inputs */
+  --border-accent: rgba(200, 16, 46, 0.4);
+
+  /* ── Shadows ──────────────────────────────────────── */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-card:  0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* ── Typography ───────────────────────────────────── */
+  /* Using standard system fonts for a real web app feel, mimicking Inter/Roboto */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* ── Radii ────────────────────────────────────────── */
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --radius-btn:  8px;
+  --radius-sm:   6px;
+
+  /* ── Spacing ──────────────────────────────────────── */
+  --nav-height:   64px;
+  --bottom-nav-h: 60px;
+}

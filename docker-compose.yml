@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quizarena_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: quizarena
+      POSTGRES_USER: quizarena_user
+      POSTGRES_PASSWORD: quizarena_pass
+    ports:
+      - '5433:5432'
+    volumes:
+      - quizarena_pgdata:/var/lib/postgresql/data
+
+volumes:
+  quizarena_pgdata:
