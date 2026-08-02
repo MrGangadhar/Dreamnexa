@@ -95,58 +95,81 @@ async function login(req, res, next) {
       return res.status(400).json({ error: 'usernameOrEmail and password are required.' });
     }
 
-    const userRes = await query(
-      `SELECT id, username, email, password_hash, role, status FROM users
-       WHERE username = $1 OR email = $1`,
-      [usernameOrEmail.toLowerCase()]
-    );
-    const user = userRes.rows[0];
-    if (!user) {
-      if (shouldUseMockData()) {
-        const demoUser = getDemoUser(usernameOrEmail);
-        const demoTokens = getDemoTokens(demoUser);
-        return res.json({ user: { id: demoUser.id, username: demoUser.username, email: demoUser.email, role: demoUser.role }, ...demoTokens });
-      }
-      return res.status(401).json({ error: 'Invalid credentials.' });
-    }
-    if (user.status !== 'active') return res.status(403).json({ error: 'Account is not active.' });
+    const normalizedUsername = (usernameOrEmail || '').toLowerCase();
 
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials.' });
-
-    // Daily login bonus (once per calendar day)
-    await withTransaction(async (client) => {
-      const lastLogin = await client.query(
-        `SELECT created_at FROM points_transactions
-         WHERE user_id = $1 AND type = 'daily_login'
-         ORDER BY created_at DESC LIMIT 1`,
-        [user.id]
+    try {
+      const userRes = await query(
+        `SELECT id, username, email, password_hash, role, status FROM users
+         WHERE username = $1 OR email = $1`,
+        [normalizedUsername]
       );
-      const last = lastLogin.rows[0]?.created_at;
-      const isNewDay = !last || new Date(last).toDateString() !== new Date().toDateString();
-      if (isNewDay) {
-        await pointsService.credit(client, {
-          userId: user.id,
-          amount: parseInt(process.env.DAILY_LOGIN_POINTS || '10', 10),
-          type: 'daily_login',
-          description: 'Daily login reward',
+      const user = userRes.rows[0];
+
+      if (!user) {
+        if (shouldUseMockData()) {
+          const demoUser = getDemoUser(normalizedUsername);
+          const demoTokens = getDemoTokens(demoUser);
+          return res.json({
+            user: { id: demoUser.id, username: demoUser.username, email: demoUser.email, role: demoUser.role },
+            ...demoTokens,
+          });
+        }
+        return res.status(401).json({ error: 'Invalid credentials.' });
+      }
+
+      if (user.status !== 'active') return res.status(403).json({ error: 'Account is not active.' });
+
+      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!valid) return res.status(401).json({ error: 'Invalid credentials.' });
+
+      // Daily login bonus (once per calendar day)
+      try {
+        await withTransaction(async (client) => {
+          const lastLogin = await client.query(
+            `SELECT created_at FROM points_transactions
+             WHERE user_id = $1 AND type = 'daily_login'
+             ORDER BY created_at DESC LIMIT 1`,
+            [user.id]
+          );
+          const last = lastLogin.rows[0]?.created_at;
+          const isNewDay = !last || new Date(last).toDateString() !== new Date().toDateString();
+          if (isNewDay) {
+            await pointsService.credit(client, {
+              userId: user.id,
+              amount: parseInt(process.env.DAILY_LOGIN_POINTS || '10', 10),
+              type: 'daily_login',
+              description: 'Daily login reward',
+            });
+          }
+        });
+      } catch (bonusErr) {
+        console.warn('Daily login bonus skipped', bonusErr.message);
+      }
+
+      const accessToken = signAccessToken(user);
+      const refreshToken = signRefreshToken(user);
+      await query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, now() + interval '30 days')`,
+        [user.id, hashToken(refreshToken)]
+      );
+
+      return res.json({
+        user: { id: user.id, username: user.username, email: user.email, role: user.role },
+        accessToken,
+        refreshToken,
+      });
+    } catch (dbErr) {
+      if (shouldUseMockData(dbErr)) {
+        const demoUser = getDemoUser(normalizedUsername);
+        const demoTokens = getDemoTokens(demoUser);
+        return res.json({
+          user: { id: demoUser.id, username: demoUser.username, email: demoUser.email, role: demoUser.role },
+          ...demoTokens,
         });
       }
-    });
-
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-    await query(
-      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-       VALUES ($1, $2, now() + interval '30 days')`,
-      [user.id, hashToken(refreshToken)]
-    );
-
-    res.json({
-      user: { id: user.id, username: user.username, email: user.email, role: user.role },
-      accessToken,
-      refreshToken,
-    });
+      throw dbErr;
+    }
   } catch (err) {
     next(err);
   }
