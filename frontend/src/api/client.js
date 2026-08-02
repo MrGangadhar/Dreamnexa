@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const client = axios.create({ baseURL: '/api' });
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://dreamnexa.onrender.com/api';
+
+const client = axios.create({ baseURL: API_BASE_URL });
 
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
@@ -32,7 +34,7 @@ client.interceptors.response.use(
 
       isRefreshing = true;
       try {
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken });
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
         localStorage.setItem('accessToken', data.accessToken);
         queue.forEach(({ resolve, original: o }) => {
           o.headers.Authorization = `Bearer ${data.accessToken}`;
