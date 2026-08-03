@@ -2,19 +2,42 @@
  * newsController.js
  * ─────────────────────────────────────────────────────────────────────────────
  * Handles all news-related API logic:
- *   • Proxies requests to NewsAPI (keeps API key server-side)
+ *   • Proxies requests to NewsData.io (keeps API key server-side)
  *   • In-memory TTL cache to avoid hitting rate limits
  *   • Bookmark CRUD against PostgreSQL
  *
  * Environment variables required:
- *   NEWS_API_KEY        — your NewsAPI key
- *   NEWS_API_BASE_URL   — https://newsapi.org/v2
+ *   NEWS_API_KEY        — your NewsData.io API key
+ *   NEWS_API_BASE_URL   — https://newsdata.io/api/1
  */
 
 'use strict';
 
 const axios = require('axios');
 const { query } = require('../db/pool');
+
+const FALLBACK_NEWS = [
+  {
+    url: 'https://news.google.com/',
+    title: 'News feed is temporarily running in fallback mode',
+    urlToImage: null,
+    source: { name: 'QuizArena' },
+    author: 'System',
+    description: 'Configure NEWS_API_KEY and NEWS_API_BASE_URL in production to restore live news.',
+    publishedAt: new Date().toISOString(),
+    content: 'Live news is unavailable until the provider credentials are configured.',
+  },
+  {
+    url: 'https://news.google.com/',
+    title: 'Add NEWS_API_KEY to the backend environment',
+    urlToImage: null,
+    source: { name: 'QuizArena' },
+    author: 'System',
+    description: 'Render needs the news provider key and base URL for the backend to fetch live articles.',
+    publishedAt: new Date().toISOString(),
+    content: 'Set the news provider variables in the Render service environment.',
+  },
+];
 
 // ── Simple in-memory TTL cache ──────────────────────────────────────────────
 const cache = new Map();
@@ -40,6 +63,17 @@ const newsApi = axios.create({
   params: { apikey: process.env.NEWS_API_KEY },
   timeout: 10_000,
 });
+
+function fallbackNewsResponse(category = null) {
+  return {
+    articles: FALLBACK_NEWS.map((item) => ({
+      ...item,
+      ...(category ? { category } : {}),
+    })),
+    totalResults: FALLBACK_NEWS.length,
+    nextPage: null,
+  };
+}
 
 // ── Category → NewsAPI query keyword map ────────────────────────────────────
 const CATEGORY_QUERY_MAP = {
@@ -67,32 +101,38 @@ async function callNewsApi(endpoint, params) {
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  const { data } = await newsApi.get(endpoint, { params });
-
-  if (data.status !== 'success') {
-    const err = new Error(data.results?.message || 'News API error');
-    err.status = 429;
-    throw err;
+  if (!process.env.NEWS_API_KEY) {
+    return fallbackNewsResponse(params.category || null);
   }
 
-  // Transform NewsData format into NewsAPI format for frontend compatibility
-  const transformed = {
-    totalResults: data.totalResults || 0,
-    nextPage: data.nextPage,
-    articles: (data.results || []).map(item => ({
-      url: item.link,
-      title: item.title,
-      urlToImage: item.image_url,
-      source: { name: item.source_id },
-      author: item.creator ? item.creator.join(', ') : null,
-      description: item.description,
-      publishedAt: item.pubDate,
-      content: item.content
-    }))
-  };
+  try {
+    const { data } = await newsApi.get(endpoint, { params });
 
-  cacheSet(cacheKey, transformed);
-  return transformed;
+    if (data.status !== 'success') {
+      return fallbackNewsResponse(params.category || null);
+    }
+
+    // Transform NewsData format into the frontend's article shape.
+    const transformed = {
+      totalResults: data.totalResults || 0,
+      nextPage: data.nextPage,
+      articles: (data.results || []).map(item => ({
+        url: item.link,
+        title: item.title,
+        urlToImage: item.image_url,
+        source: { name: item.source_id },
+        author: item.creator ? item.creator.join(', ') : null,
+        description: item.description,
+        publishedAt: item.pubDate,
+        content: item.content
+      }))
+    };
+
+    cacheSet(cacheKey, transformed);
+    return transformed;
+  } catch (err) {
+    return fallbackNewsResponse(params.category || null);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,7 +204,7 @@ async function getByCategory(req, res, next) {
       ...(page && page !== '1' && { page }),
     };
 
-    const data = await callNewsApi('/latest', params);
+    const data = await callNewsApi('/latest', { ...params, category });
     return res.json({
       articles:    data.articles || [],
       totalResults: data.totalResults || 0,
