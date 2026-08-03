@@ -49,6 +49,36 @@ const demoLeaderboard = [
   { user_id: 'demo-user-3', full_name: 'Rohan Das', username: 'rohan', college: 'BITS Pilani', total_points: 1980, contests_won: 2, total_contests: 9, global_rank: 3 },
 ];
 
+const demoProfile = {
+  id: 'demo-user-id',
+  username: 'demo_user',
+  email: 'demo@example.com',
+  role: 'student',
+  status: 'active',
+  full_name: 'Demo User',
+  college: 'DreamNexa College',
+  university: 'DreamNexa University',
+  state: 'Karnataka',
+  city: 'Bengaluru',
+  avatar_url: null,
+  referral_code: 'DEMO1234',
+  total_points: 1250,
+  total_contests: 8,
+  total_quizzes_played: 14,
+  contests_won: 2,
+};
+
+const demoPointsHistory = [
+  { id: 'demo-point-1', amount: 50, type: 'signup_bonus', description: 'Welcome bonus for creating an account', created_at: new Date().toISOString() },
+  { id: 'demo-point-2', amount: 10, type: 'daily_login', description: 'Daily login reward', created_at: new Date().toISOString() },
+  { id: 'demo-point-3', amount: 200, type: 'rank_bonus', description: 'First place contest reward', created_at: new Date().toISOString() },
+];
+
+const demoBadges = [
+  { code: 'gold_scholar', name: 'Gold Scholar', description: 'Finished 1st in a contest', icon: 'trophy-gold', awarded_at: new Date().toISOString() },
+  { code: 'first_contest', name: 'First Steps', description: 'Joined your first contest', icon: 'flag', awarded_at: new Date().toISOString() },
+];
+
 function isMockDataEnabled() {
   return process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL;
 }
@@ -78,11 +108,9 @@ function getDemoContestById(id) {
 function getDemoUser(emailOrUsername) {
   const normalized = (emailOrUsername || '').toLowerCase();
   return {
-    id: 'demo-user-id',
-    username: normalized.includes('@') ? 'demo_user' : normalized || 'demo_user',
-    email: normalized.includes('@') ? normalized : 'demo@example.com',
-    role: 'student',
-    status: 'active',
+    ...demoProfile,
+    username: normalized.includes('@') ? demoProfile.username : normalized || demoProfile.username,
+    email: normalized.includes('@') ? normalized : demoProfile.email,
   };
 }
 
@@ -93,12 +121,32 @@ function getDemoTokens(user) {
   };
 }
 
+function getDemoProfile(emailOrUsername) {
+  return getDemoUser(emailOrUsername);
+}
+
+function getDemoContests() {
+  return demoContests;
+}
+
+function getDemoPointsHistory() {
+  return demoPointsHistory;
+}
+
+function getDemoBadges() {
+  return demoBadges;
+}
+
 module.exports = {
   demoContests,
   demoLeaderboard,
   getDemoContestById,
   getDemoUser,
   getDemoTokens,
+  getDemoProfile,
+  getDemoContests,
+  getDemoPointsHistory,
+  getDemoBadges,
   isMockDataEnabled,
   shouldUseMockData,
 };

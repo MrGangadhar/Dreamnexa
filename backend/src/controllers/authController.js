@@ -8,10 +8,23 @@ const {
   generateReferralCode,
 } = require('../utils/tokens');
 const pointsService = require('../utils/pointsService');
-const { getDemoUser, getDemoTokens, shouldUseMockData } = require('../utils/mockData');
+const { getDemoProfile, shouldUseMockData } = require('../utils/mockData');
 
 const SIGNUP_BONUS_POINTS = 50;
 const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '100', 10);
+
+async function loadAuthUser(userId) {
+  const result = await query(
+    `SELECT u.id, u.username, u.email, u.role, u.status,
+            p.full_name, p.college, p.university, p.state, p.city, p.avatar_url,
+            p.referral_code, p.total_points, p.total_contests, p.total_quizzes_played, p.contests_won
+     FROM users u
+     JOIN profiles p ON p.user_id = u.id
+     WHERE u.id = $1`,
+    [userId]
+  );
+  return result.rows[0] || null;
+}
 
 async function register(req, res, next) {
   try {
@@ -22,6 +35,15 @@ async function register(req, res, next) {
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    if (shouldUseMockData()) {
+      const demoUser = getDemoProfile(username);
+      return res.status(201).json({
+        user: demoUser,
+        accessToken: signAccessToken(demoUser),
+        refreshToken: signRefreshToken(demoUser),
+      });
     }
 
     const result = await withTransaction(async (client) => {
@@ -70,8 +92,9 @@ async function register(req, res, next) {
       return user;
     });
 
-    const accessToken = signAccessToken(result);
-    const refreshToken = signRefreshToken(result);
+    const authUser = (await loadAuthUser(result.id)) || result;
+    const accessToken = signAccessToken(authUser);
+    const refreshToken = signRefreshToken(authUser);
     await query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
        VALUES ($1, $2, now() + interval '30 days')`,
@@ -79,7 +102,7 @@ async function register(req, res, next) {
     );
 
     res.status(201).json({
-      user: { id: result.id, username: result.username, email: result.email, role: result.role },
+      user: authUser,
       accessToken,
       refreshToken,
     });
@@ -96,6 +119,15 @@ async function login(req, res, next) {
     }
 
     const normalizedUsername = (usernameOrEmail || '').toLowerCase();
+
+    if (shouldUseMockData()) {
+      const demoUser = getDemoProfile(normalizedUsername);
+      return res.json({
+        user: demoUser,
+        accessToken: signAccessToken(demoUser),
+        refreshToken: signRefreshToken(demoUser),
+      });
+    }
 
     try {
       const userRes = await query(
@@ -146,8 +178,9 @@ async function login(req, res, next) {
         console.warn('Daily login bonus skipped', bonusErr.message);
       }
 
-      const accessToken = signAccessToken(user);
-      const refreshToken = signRefreshToken(user);
+      const authUser = (await loadAuthUser(user.id)) || user;
+      const accessToken = signAccessToken(authUser);
+      const refreshToken = signRefreshToken(authUser);
       await query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
          VALUES ($1, $2, now() + interval '30 days')`,
@@ -155,17 +188,17 @@ async function login(req, res, next) {
       );
 
       return res.json({
-        user: { id: user.id, username: user.username, email: user.email, role: user.role },
+        user: authUser,
         accessToken,
         refreshToken,
       });
     } catch (dbErr) {
       if (shouldUseMockData(dbErr)) {
-        const demoUser = getDemoUser(normalizedUsername);
-        const demoTokens = getDemoTokens(demoUser);
+        const demoUser = getDemoProfile(normalizedUsername);
         return res.json({
-          user: { id: demoUser.id, username: demoUser.username, email: demoUser.email, role: demoUser.role },
-          ...demoTokens,
+          user: demoUser,
+          accessToken: signAccessToken(demoUser),
+          refreshToken: signRefreshToken(demoUser),
         });
       }
       throw dbErr;
@@ -181,6 +214,14 @@ async function refresh(req, res, next) {
     if (!refreshToken) return res.status(400).json({ error: 'refreshToken is required.' });
 
     const payload = verifyRefreshToken(refreshToken);
+
+    if (shouldUseMockData()) {
+      const demoUser = getDemoProfile();
+      if (payload.sub === demoUser.id) {
+        return res.json({ accessToken: signAccessToken(demoUser) });
+      }
+    }
+
     const tokenHash = hashToken(refreshToken);
 
     const dbToken = await query(

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,6 +16,7 @@ const statusConfig = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [myContests, setMyContests] = useState([]);
   const [badges, setBadges] = useState([]);
   const [pointsHistory, setPointsHistory] = useState([]);

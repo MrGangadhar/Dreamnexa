@@ -7,12 +7,14 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMe = useCallback(async () => {
+  const fetchMe = useCallback(async (fallbackUser = null) => {
     try {
       const { data } = await client.get('/users/me');
       setUser(data);
+      return data;
     } catch {
-      setUser(null);
+      setUser(fallbackUser);
+      return fallbackUser;
     } finally {
       setLoading(false);
     }
@@ -30,7 +32,8 @@ export function AuthProvider({ children }) {
     const { data } = await client.post('/auth/login', { usernameOrEmail, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    await fetchMe();
+    setUser(data.user ?? null);
+    await fetchMe(data.user ?? null);
     return data.user;
   };
 
@@ -38,7 +41,8 @@ export function AuthProvider({ children }) {
     const { data } = await client.post('/auth/register', payload);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    await fetchMe();
+    setUser(data.user ?? null);
+    await fetchMe(data.user ?? null);
     return data.user;
   };
 

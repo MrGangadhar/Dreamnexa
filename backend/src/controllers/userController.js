@@ -1,7 +1,18 @@
 const { query } = require('../db/pool');
+const {
+  shouldUseMockData,
+  getDemoProfile,
+  getDemoContests,
+  getDemoPointsHistory,
+  getDemoBadges,
+} = require('../utils/mockData');
 
 async function getMe(req, res, next) {
   try {
+    if (shouldUseMockData() || req.user.id === 'demo-user-id') {
+      return res.json(getDemoProfile());
+    }
+
     const result = await query(
       `SELECT u.id, u.username, u.email, u.mobile, u.role, u.created_at,
               p.full_name, p.college, p.university, p.state, p.city, p.avatar_url,
@@ -41,6 +52,10 @@ async function updateProfile(req, res, next) {
 
 async function getPointsHistory(req, res, next) {
   try {
+    if (shouldUseMockData() || req.user.id === 'demo-user-id') {
+      return res.json(getDemoPointsHistory());
+    }
+
     const { limit = 50, offset = 0 } = req.query;
     const result = await query(
       `SELECT id, amount, type, description, created_at
@@ -56,6 +71,10 @@ async function getPointsHistory(req, res, next) {
 
 async function getMyContests(req, res, next) {
   try {
+    if (shouldUseMockData() || req.user.id === 'demo-user-id') {
+      return res.json(getDemoContests());
+    }
+
     const { status } = req.query;
     const params = [req.user.id];
     let statusClause = '';
@@ -80,6 +99,10 @@ async function getMyContests(req, res, next) {
 
 async function getMyBadges(req, res, next) {
   try {
+    if (shouldUseMockData() || req.user.id === 'demo-user-id') {
+      return res.json(getDemoBadges());
+    }
+
     const result = await query(
       `SELECT b.code, b.name, b.description, b.icon, ub.awarded_at
        FROM user_badges ub JOIN badges b ON b.id = ub.badge_id
