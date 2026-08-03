@@ -14,6 +14,8 @@ const newsRoutes = require('./routes/newsRoutes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
