@@ -24,7 +24,7 @@
 
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const nc = require('../controllers/newsController');
 
 const router = express.Router();
@@ -45,11 +45,5 @@ router.get('/category/:category',newsLimiter, nc.getByCategory);
 router.get(   '/bookmarks',      requireAuth, nc.getBookmarks);
 router.post(  '/bookmark',       requireAuth, nc.addBookmark);
 router.delete('/bookmark/:id',   requireAuth, nc.removeBookmark);
-
-// ── Admin (JWT + admin role) ──────────────────────────────────────────────────
-router.get(   '/articles/all',   requireAuth, requireAdmin, nc.listAllArticles);
-router.post(  '/articles',       requireAuth, requireAdmin, nc.createArticle);
-router.put(   '/articles/:id',   requireAuth, requireAdmin, nc.updateArticle);
-router.delete('/articles/:id',   requireAuth, requireAdmin, nc.deleteArticle);
 
 module.exports = router;

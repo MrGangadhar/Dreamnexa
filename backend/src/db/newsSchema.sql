@@ -1,5 +1,5 @@
 -- ============================================================
--- QuizArena — News Bookmarks Schema
+-- DreamNexa — News Bookmarks Schema
 -- ============================================================
 -- Stores articles bookmarked by users.
 -- The UNIQUE(user_id, news_url) constraint prevents duplicates.

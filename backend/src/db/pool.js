@@ -29,7 +29,7 @@ async function query(text, params) {
     return res;
   } catch (err) {
     console.error('Database query failed', err.message);
-    return { rows: [], rowCount: 0, fields: [] };
+    throw err;
   }
 }
 

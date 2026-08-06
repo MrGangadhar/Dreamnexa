@@ -1,7 +1,7 @@
 {
-  "name": "quizarena-backend",
+  "name": "dreamnexa-backend",
   "version": "1.0.0",
-  "description": "QuizArena — free-to-play, points-based student quiz contest platform (no real-money wallet, no cash prizes)",
+  "description": "DreamNexa — free-to-play, points-based student quiz contest platform (no real-money wallet, no cash prizes)",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {

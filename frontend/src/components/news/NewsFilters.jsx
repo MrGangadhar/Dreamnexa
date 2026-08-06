@@ -47,45 +47,6 @@ export default function NewsFilters({ filters, onChange }) {
           </button>
         ))}
       </div>
-
-      {/* Filter controls row */}
-      <div className="filter-controls">
-        {/* Sort */}
-        <select
-          className="filter-select"
-          value={filters.sortBy}
-          onChange={(e) => onChange({ sortBy: e.target.value })}
-          aria-label="Sort by"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        {/* Date range */}
-        <select
-          className="filter-select"
-          value={filters.dateRange}
-          onChange={(e) => onChange({ dateRange: e.target.value })}
-          aria-label="Date range"
-        >
-          {DATE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        {/* Language */}
-        <select
-          className="filter-select"
-          value={filters.language}
-          onChange={(e) => onChange({ language: e.target.value })}
-          aria-label="Language"
-        >
-          {LANGUAGE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
     </motion.div>
   );
 }

@@ -41,7 +41,7 @@ app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
 app.use('/api', globalLimiter);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'quizarena-backend' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'dreamnexa-backend' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

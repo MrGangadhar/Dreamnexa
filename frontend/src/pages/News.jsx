@@ -42,9 +42,6 @@ import '../styles/news.css';
 // ── Default filter state ───────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
   category:  'all',
-  sortBy:    'publishedAt',
-  dateRange: '',
-  language:  'en,hi,kn',
 };
 
 // ── News Page ──────────────────────────────────────────────────────────────
