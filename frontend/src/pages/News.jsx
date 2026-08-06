@@ -1,8 +1,8 @@
 /**
  * News.jsx — /news route
  * ─────────────────────────────────────────────────────────────────────────────
- * Full-featured news page:
- *   1. Breaking news carousel (top 5 articles)
+ * Full-featured news page showing admin-created articles & vlogs:
+ *   1. Breaking news carousel (featured articles with images)
  *   2. Search bar (debounced)
  *   3. Category filter pills + Sort / Date / Language selects
  *   4. Infinite-scroll news grid with skeleton loaders
@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /* ── Local imports ─────────────────────────────────────────────────────────── */
 import { useInfiniteNews, useNewsSearch, useBookmarks, useAddBookmark, useRemoveBookmark, useBookmarkUrlSet, useBookmarkIdMap } from '../hooks/useNews';
-import { dateOffsetToISO, classifyError } from '../utils/newsUtils';
+import { classifyError } from '../utils/newsUtils';
 import { useAuth } from '../context/AuthContext';
 
 import BreakingNewsCarousel from '../components/news/BreakingNewsCarousel';
@@ -54,7 +54,6 @@ export default function News({ defaultCategory = 'all' }) {
   /* Filter / search state */
   const [filters,      setFilters]      = useState({ ...DEFAULT_FILTERS, category: defaultCategory });
   const [searchQuery,  setSearchQuery]  = useState('');
-  const [isSearching,  setIsSearching]  = useState(false);
 
   /* UI state */
   const [darkMode,     setDarkMode]     = useState(() =>
@@ -69,8 +68,8 @@ export default function News({ defaultCategory = 'all' }) {
 
   /* ── Page title for SEO ─────────────────────────────────────────────── */
   useEffect(() => {
-    document.title = 'Latest News | QuizArena — Exam Prep & Current Affairs';
-    return () => { document.title = 'QuizArena'; };
+    document.title = 'Latest News | DreamNexa — Exam Prep & Current Affairs';
+    return () => { document.title = 'DreamNexa'; };
   }, []);
 
   /* ── Dark mode effect ─────────────────────────────────────────────────── */
@@ -88,10 +87,7 @@ export default function News({ defaultCategory = 'all' }) {
   /* ── Build infinite query params ────────────────────────────────────── */
   const infiniteParams = {
     category:  filters.category !== 'all' ? filters.category : undefined,
-    sortBy:    filters.sortBy,
-    language:  filters.language,
     pageSize:  12,
-    ...(filters.dateRange && { from: dateOffsetToISO(filters.dateRange) }),
   };
 
   const infiniteQuery = useInfiniteNews(infiniteParams);
@@ -125,7 +121,7 @@ export default function News({ defaultCategory = 'all' }) {
       toast.error('Please log in to bookmark articles.');
       return;
     }
-    const url = article.url;
+    const url = article.url || article.id;
     if (bookmarkUrlSet.has(url)) {
       const id = bookmarkIdMap.get(url);
       await removeBookmark.mutateAsync(id);
@@ -167,15 +163,18 @@ export default function News({ defaultCategory = 'all' }) {
   const error = query.error;
   const errorType = error ? classifyError(error) : null;
 
-  /* ── Carousel articles (first 5 with images) ─────────────────────────*/
-  const carouselArticles = articles.filter((a) => a.urlToImage).slice(0, 5);
+  /* ── Carousel articles (featured or first 5 with images) ─────────────*/
+  const carouselArticles = articles
+    .filter((a) => a.urlToImage)
+    .sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0))
+    .slice(0, 5);
 
   /* ── Skeleton count ─────────────────────────────────────────────────── */
   const skeletonCount = 9;
 
   /* ── Related articles for detail modal ─────────────────────────────── */
   const getRelated = (current) =>
-    articles.filter((a) => a.url !== current?.url).slice(0, 4);
+    articles.filter((a) => (a.url || a.id) !== (current?.url || current?.id)).slice(0, 4);
 
   return (
     <>
@@ -295,10 +294,10 @@ export default function News({ defaultCategory = 'all' }) {
               <AnimatePresence>
                 {articles.map((article, index) => (
                   <NewsCard
-                    key={article.url || index}
+                    key={article.id || article.url || index}
                     article={article}
-                    isBookmarked={bookmarkUrlSet.has(article.url)}
-                    category={filters.category !== 'all' ? filters.category : undefined}
+                    isBookmarked={bookmarkUrlSet.has(article.url || article.id)}
+                    category={filters.category !== 'all' ? filters.category : article.category}
                     onBookmark={() => handleToggleBookmark(article)}
                     onShare={() => setShareArticle(article)}
                     onClick={() => setDetailArticle({ ...article, _category: filters.category })}
@@ -356,7 +355,7 @@ export default function News({ defaultCategory = 'all' }) {
       {detailArticle && (
         <NewsDetailModal
           article={detailArticle}
-          isBookmarked={bookmarkUrlSet.has(detailArticle.url)}
+          isBookmarked={bookmarkUrlSet.has(detailArticle.url || detailArticle.id)}
           onBookmark={() => handleToggleBookmark(detailArticle)}
           onShare={() => {
             setDetailArticle(null);

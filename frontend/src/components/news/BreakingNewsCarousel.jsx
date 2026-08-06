@@ -51,7 +51,7 @@ export default function BreakingNewsCarousel({ articles = [], onCardClick }) {
       onMouseLeave={() => setPaused(false)}
     >
       {articles.map((article, i) => {
-        const emoji = getCategoryEmoji(article._category);
+        const emoji = getCategoryEmoji(article._category || article.category);
         return (
           <div
             key={article.url || i}

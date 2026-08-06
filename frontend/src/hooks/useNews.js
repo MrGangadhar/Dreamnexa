@@ -4,13 +4,17 @@
  * React Query hooks for the news feature.
  *
  * Hooks exported:
- *   useNews(params)          — paginated news feed
- *   useNewsSearch(q, params) — debounced search
- *   useNewsCategory(cat)     — category feed
- *   useBookmarks()           — user bookmark list (requires auth)
- *   useAddBookmark()         — mutation to add
- *   useRemoveBookmark()      — mutation to remove
- *   useInfiniteNews(params)  — infinite-scroll variant
+ *   useNews(params)              — paginated news feed
+ *   useNewsSearch(q, params)     — debounced search
+ *   useNewsCategory(cat)         — category feed
+ *   useBookmarks()               — user bookmark list (requires auth)
+ *   useAddBookmark()             — mutation to add
+ *   useRemoveBookmark()          — mutation to remove
+ *   useInfiniteNews(params)      — infinite-scroll variant
+ *   useAllArticles()             — admin: all articles
+ *   useCreateArticle()           — admin: create mutation
+ *   useUpdateArticle()           — admin: update mutation
+ *   useDeleteArticle()           — admin: delete mutation
  */
 
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,22 +26,27 @@ import {
   getBookmarks,
   addBookmark,
   removeBookmark,
+  fetchAllArticles,
+  createArticle,
+  updateArticle,
+  deleteArticle,
 } from '../api/newsApi';
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 export const newsKeys = {
-  all:      ['news'],
-  feed:     (params) => ['news', 'feed', params],
-  search:   (q, params) => ['news', 'search', q, params],
-  category: (cat, params) => ['news', 'category', cat, params],
-  bookmarks: () => ['news', 'bookmarks'],
-  infinite: (params) => ['news', 'infinite', params],
+  all:         ['news'],
+  feed:        (params) => ['news', 'feed', params],
+  search:      (q, params) => ['news', 'search', q, params],
+  category:    (cat, params) => ['news', 'category', cat, params],
+  bookmarks:   () => ['news', 'bookmarks'],
+  infinite:    (params) => ['news', 'infinite', params],
+  adminAll:    () => ['news', 'admin', 'all'],
 };
 
 // ── useNews ───────────────────────────────────────────────────────────────────
 /**
  * Fetch a paginated news feed.
- * @param {Object} params - { q, page, pageSize, sortBy, from, to }
+ * @param {Object} params - { page, pageSize, category, type }
  */
 export function useNews(params = {}) {
   return useQuery({
@@ -45,7 +54,7 @@ export function useNews(params = {}) {
     queryFn:   () => fetchNews(params),
     staleTime: 5 * 60 * 1000,   // 5-min cache
     retry:     2,
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -70,7 +79,7 @@ export function useNewsSearch(query, params = {}, debounceMs = 400) {
     enabled:   debouncedQ.trim().length > 0,
     staleTime: 3 * 60 * 1000,
     retry:     1,
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -78,7 +87,7 @@ export function useNewsSearch(query, params = {}, debounceMs = 400) {
 /**
  * Fetch news for a specific category.
  * @param {string} category
- * @param {Object} params - { page, pageSize, sortBy }
+ * @param {Object} params - { page, pageSize }
  */
 export function useNewsCategory(category, params = {}) {
   return useQuery({
@@ -87,14 +96,15 @@ export function useNewsCategory(category, params = {}) {
     enabled:   !!category && category !== 'all',
     staleTime: 5 * 60 * 1000,
     retry:     2,
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 }
 
 // ── useInfiniteNews ───────────────────────────────────────────────────────────
 /**
  * Infinite-scroll variant of the news feed.
- * @param {Object} params - { q, pageSize, sortBy, category }
+ * Uses page numbers for pagination (DB-backed).
+ * @param {Object} params - { pageSize, category }
  */
 export function useInfiniteNews(params = {}) {
   const { category, ...rest } = params;
@@ -108,8 +118,7 @@ export function useInfiniteNews(params = {}) {
       return fetchNews({ ...rest, page: pageParam });
     },
     getNextPageParam: (lastPage) => {
-      // NewsData.io returns a `nextPage` token string.
-      // If there is no nextPage, return undefined to stop fetching.
+      // Backend returns nextPage as an integer or null
       return lastPage.nextPage || undefined;
     },
     staleTime: 5 * 60 * 1000,
@@ -166,5 +175,56 @@ export function useRemoveBookmark() {
   return useMutation({
     mutationFn: removeBookmark,
     onSuccess: () => qc.invalidateQueries({ queryKey: newsKeys.bookmarks() }),
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Admin: fetch all articles (including unpublished). */
+export function useAllArticles(enabled = true) {
+  return useQuery({
+    queryKey: newsKeys.adminAll(),
+    queryFn:  fetchAllArticles,
+    enabled,
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
+}
+
+/** Admin: create a new article. */
+export function useCreateArticle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createArticle,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: newsKeys.adminAll() });
+      qc.invalidateQueries({ queryKey: newsKeys.all });
+    },
+  });
+}
+
+/** Admin: update an existing article. */
+export function useUpdateArticle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => updateArticle(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: newsKeys.adminAll() });
+      qc.invalidateQueries({ queryKey: newsKeys.all });
+    },
+  });
+}
+
+/** Admin: delete an article. */
+export function useDeleteArticle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteArticle,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: newsKeys.adminAll() });
+      qc.invalidateQueries({ queryKey: newsKeys.all });
+    },
   });
 }

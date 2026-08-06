@@ -2,30 +2,43 @@
  * NewsDetailModal.jsx
  * ─────────────────────────────────────────────────────────────────────────────
  * Full-screen/drawer modal showing complete article details, with:
- *   - Large cover image
- *   - Full description
+ *   - Large cover image (or YouTube embed for vlogs)
+ *   - Full description / content
  *   - Meta (source, date, author, read time)
  *   - Bookmark + Share actions
- *   - Open original website button
  *   - Related articles carousel
  */
 
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiX, FiExternalLink, FiBookmark, FiShare2, FiClock, FiCalendar, FiUser,
+  FiX, FiExternalLink, FiBookmark, FiShare2, FiClock, FiCalendar, FiUser, FiPlay,
 } from 'react-icons/fi';
 import { FaBookmark } from 'react-icons/fa';
 import { formatDistanceToNow } from '../../utils/dateUtils';
 import { estimateReadTime, getCategoryEmoji } from '../../utils/newsUtils';
 
-function getSourceFavicon(article) {
+/**
+ * Extract YouTube embed URL from various YouTube URL formats.
+ */
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
   try {
-    const domain = new URL(article.url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-  } catch {
-    return null;
-  }
+    const u = new URL(url);
+    // youtube.com/watch?v=xxx
+    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
+      return `https://www.youtube.com/embed/${u.searchParams.get('v')}`;
+    }
+    // youtu.be/xxx
+    if (u.hostname === 'youtu.be') {
+      return `https://www.youtube.com/embed${u.pathname}`;
+    }
+    // already an embed URL
+    if (u.pathname.includes('/embed/')) {
+      return url;
+    }
+  } catch { /* ignore */ }
+  return url; // fallback: use as-is
 }
 
 /**
@@ -59,10 +72,11 @@ export default function NewsDetailModal({
 
   if (!article) return null;
 
+  const isVlog = article.articleType === 'vlog';
   const readTime    = estimateReadTime(article.content || article.description || '');
   const publishedAgo = formatDistanceToNow(article.publishedAt);
-  const favicon     = getSourceFavicon(article);
-  const emoji       = getCategoryEmoji(article._category);
+  const emoji       = getCategoryEmoji(article._category || article.category);
+  const embedUrl    = isVlog ? getYouTubeEmbedUrl(article.vlogUrl) : null;
 
   return (
     <AnimatePresence>
@@ -86,12 +100,18 @@ export default function NewsDetailModal({
             <button className="detail-back-btn" onClick={onClose}>
               <FiX size={14} /> Close
             </button>
-            {article.source?.name && (
-              <span style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                {favicon && <img src={favicon} alt="" style={{ width: 16, height: 16, borderRadius: 3 }} />}
-                {article.source.name}
-              </span>
-            )}
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {isVlog && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: '#ef4444',
+                  background: 'rgba(239,68,68,0.1)',
+                  padding: '2px 8px', borderRadius: 4,
+                }}>
+                  VLOG
+                </span>
+              )}
+              {article.source?.name || 'DreamNexa'}
+            </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button className="card-action-btn" onClick={onShare} title="Share">
                 <FiShare2 size={14} />
@@ -106,8 +126,31 @@ export default function NewsDetailModal({
             </div>
           </div>
 
-          {/* Cover image */}
-          {article.urlToImage ? (
+          {/* Cover image or Vlog embed */}
+          {isVlog && embedUrl ? (
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              paddingTop: '56.25%', /* 16:9 aspect ratio */
+              background: '#000',
+              borderRadius: 'var(--radius-card, 12px)',
+              overflow: 'hidden',
+              marginBottom: 4,
+            }}>
+              <iframe
+                src={embedUrl}
+                title={article.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0,
+                  width: '100%', height: '100%',
+                }}
+              />
+            </div>
+          ) : article.urlToImage ? (
             <img
               src={article.urlToImage}
               alt={article.title}
@@ -123,17 +166,16 @@ export default function NewsDetailModal({
           <div className="detail-body">
             {/* Meta row */}
             <div className="detail-meta">
-              {article.source?.name && (
-                <span className="detail-meta-item">
-                  {favicon && <img src={favicon} alt="" style={{ width: 14, height: 14, borderRadius: 2 }} />}
-                  {article.source.name}
-                </span>
-              )}
+              <span className="detail-meta-item">
+                {article.source?.name || 'DreamNexa'}
+              </span>
               <span className="detail-meta-item"><FiCalendar size={12} />{publishedAgo}</span>
               {article.author && (
                 <span className="detail-meta-item"><FiUser size={12} />{article.author}</span>
               )}
-              <span className="detail-meta-item"><FiClock size={12} />{readTime} min read</span>
+              <span className="detail-meta-item">
+                {isVlog ? <><FiPlay size={12} /> Video</> : <><FiClock size={12} />{readTime} min read</>}
+              </span>
             </div>
 
             {/* Title */}
@@ -141,22 +183,24 @@ export default function NewsDetailModal({
 
             {/* Description / content */}
             <div className="detail-description">
-              {article.content
-                ? article.content.replace(/\[\+\d+ chars\]$/, '')
-                : article.description}
+              {article.content || article.description || 'No content available.'}
             </div>
+
+            {/* Vlog external link */}
+            {isVlog && article.vlogUrl && (
+              <a
+                href={article.vlogUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost"
+                style={{ borderRadius: 'var(--radius-pill)', gap: 8, marginTop: 12, display: 'inline-flex' }}
+              >
+                <FiExternalLink size={14} /> Open in YouTube
+              </a>
+            )}
 
             {/* Actions */}
             <div className="detail-actions">
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-                style={{ borderRadius: 'var(--radius-pill)', gap: 8 }}
-              >
-                <FiExternalLink size={14} /> Read Full Article
-              </a>
               <button
                 className={`btn btn-ghost ${isBookmarked ? 'bookmarked' : ''}`}
                 onClick={onBookmark}
@@ -180,12 +224,11 @@ export default function NewsDetailModal({
                 <h3>Related Articles</h3>
                 <div className="related-list">
                   {relatedArticles.slice(0, 4).map((rel, i) => (
-                    <a
-                      key={i}
-                      href={rel.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <div
+                      key={rel.id || i}
                       className="related-item"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {/* parent handles navigation */}}
                     >
                       {rel.urlToImage ? (
                         <img
@@ -200,14 +243,14 @@ export default function NewsDetailModal({
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: 'var(--bg-raised)', fontSize: 28,
                         }}>
-                          📰
+                          {rel.articleType === 'vlog' ? '🎥' : '📰'}
                         </div>
                       )}
                       <div className="related-info">
                         <div className="related-title">{rel.title}</div>
-                        <div className="related-source">{rel.source?.name} · {formatDistanceToNow(rel.publishedAt)}</div>
+                        <div className="related-source">{rel.source?.name || 'DreamNexa'} · {formatDistanceToNow(rel.publishedAt)}</div>
                       </div>
-                    </a>
+                    </div>
                   ))}
                 </div>
               </div>

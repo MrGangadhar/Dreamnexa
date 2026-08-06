@@ -12,14 +12,27 @@ import {
   FaWhatsapp, FaTelegramPlane, FaFacebookF, FaTwitter,
 } from 'react-icons/fa';
 
+function getShareableUrl(article) {
+  // For vlogs, share the vlog URL directly (e.g., YouTube link)
+  if (article.articleType === 'vlog' && article.vlogUrl) {
+    return article.vlogUrl;
+  }
+  // For internal articles, build a full URL
+  const articleUrl = article.url || '';
+  if (articleUrl.startsWith('http')) return articleUrl;
+  return `${window.location.origin}${articleUrl}`;
+}
+
 function buildShareUrls(article) {
-  const url   = encodeURIComponent(article.url || '');
+  const shareUrl = getShareableUrl(article);
+  const url   = encodeURIComponent(shareUrl);
   const title = encodeURIComponent(article.title || '');
   return {
     whatsapp: `https://wa.me/?text=${title}%20${url}`,
     telegram: `https://t.me/share/url?url=${url}&text=${title}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
     twitter:  `https://twitter.com/intent/tweet?text=${title}&url=${url}`,
+    rawUrl: shareUrl,
   };
 }
 
@@ -33,13 +46,13 @@ export default function ShareModal({ article, onClose }) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(article.url);
+      await navigator.clipboard.writeText(urls.rawUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* Fallback for older browsers */
       const el = document.createElement('input');
-      el.value = article.url;
+      el.value = urls.rawUrl;
       document.body.appendChild(el);
       el.select();
       document.execCommand('copy');
@@ -131,7 +144,7 @@ export default function ShareModal({ article, onClose }) {
 
           {/* URL row */}
           <div className="share-url-row">
-            <div className="share-url-input">{article.url}</div>
+            <div className="share-url-input">{urls.rawUrl}</div>
             <button
               className={`share-copy-btn ${copied ? 'copied' : ''}`}
               onClick={handleCopy}
