@@ -1,3 +1,4 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { pool } = require('./pool');
@@ -11,12 +12,18 @@ async function runSqlFile(filename) {
 }
 
 async function migrate() {
+  if (!process.env.DATABASE_URL) {
+    console.error('✖ Migration failed: DATABASE_URL environment variable is missing.');
+    process.exitCode = 1;
+    return;
+  }
   try {
     await runSqlFile('schema.sql');
     await runSqlFile('newsContentSchema.sql');
     await runSqlFile('newsSchema.sql');
+    await runSqlFile('walletSchema.sql');
   } catch (err) {
-    console.error('✖ Migration failed:', err.message);
+    console.error('✖ Migration failed:', err);
     process.exitCode = 1;
   } finally {
     await pool.end();
