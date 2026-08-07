@@ -17,6 +17,7 @@ import Leaderboard from './pages/Leaderboard';
 import Dashboard   from './pages/Dashboard';
 import Admin       from './pages/Admin';
 import News        from './pages/News';
+import Wallet      from './pages/Wallet';
 
 // ── React Query client — 5-min stale time by default ──────────────────────
 const queryClient = new QueryClient({
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/contests/:contestId/play" element={<ProtectedRoute><QuizPlay /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/dashboard"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/wallet"     element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
             <Route path="/admin"      element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
 
             {/* ── Latest News Module ─────────────────────────────────── */}

@@ -11,6 +11,7 @@ const quizRoutes = require('./routes/quizRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const newsRoutes = require('./routes/newsRoutes');
+const walletRoutes = require('./routes/walletRoutes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -50,6 +51,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/wallet', walletRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -11,6 +11,18 @@ async function runSqlFile(filename) {
   console.log(`✔ ${filename} executed successfully.`);
 }
 
+async function checkTableExists(tableName) {
+  const res = await pool.query(
+    `SELECT EXISTS (
+       SELECT FROM pg_tables 
+       WHERE schemaname = 'public' 
+       AND tablename = $1
+     );`,
+    [tableName]
+  );
+  return res.rows[0].exists;
+}
+
 async function migrate() {
   if (!process.env.DATABASE_URL) {
     console.error('✖ Migration failed: DATABASE_URL environment variable is missing.');
@@ -18,7 +30,12 @@ async function migrate() {
     return;
   }
   try {
-    await runSqlFile('schema.sql');
+    const hasUsers = await checkTableExists('users');
+    if (!hasUsers) {
+      await runSqlFile('schema.sql');
+    } else {
+      console.log('schema.sql migration skipped: users table already exists.');
+    }
     await runSqlFile('newsContentSchema.sql');
     await runSqlFile('newsSchema.sql');
     await runSqlFile('walletSchema.sql');

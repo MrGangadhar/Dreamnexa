@@ -170,6 +170,21 @@ export default function SidebarNav({ isOpen, onClose }) {
                 </div>
               ))}
 
+              {/* Admin Access */}
+              {user?.role === 'admin' && (
+                <div>
+                  <div className="sidebar-section-title">Admin</div>
+                  <Link
+                    to="/admin"
+                    className={`sidebar-item ${location.pathname === '/admin' ? 'active' : ''}`}
+                    onClick={onClose}
+                  >
+                    <FiSettings className="sidebar-item-icon" />
+                    Admin Control Room
+                  </Link>
+                </div>
+              )}
+
               {/* Logout */}
               {user && (
                 <div>

@@ -81,9 +81,12 @@ export default function Dashboard() {
               textAlign: 'center',
             }}>
               <div className="eyebrow" style={{ marginBottom: 4 }}>Balance</div>
-              <div style={{ fontWeight: 700, fontSize: 24, color: '#b37300' }}>
+              <div style={{ fontWeight: 700, fontSize: 24, color: '#b37300', marginBottom: 8 }}>
                 {(user.total_points ?? 0).toLocaleString()} <span style={{ fontSize: 14 }}>pts</span>
               </div>
+              <Link to="/wallet" className="btn btn-ghost" style={{ fontSize: 13, padding: '4px 12px' }}>
+                Go to Wallet
+              </Link>
             </div>
           </div>
 
