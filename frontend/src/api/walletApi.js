@@ -1,4 +1,4 @@
-import api from './axios';
+import api from './client';
 
 export const walletApi = {
   getSummary: () => api.get('/wallet').then((res) => res.data),
