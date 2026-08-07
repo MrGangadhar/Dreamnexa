@@ -5,21 +5,21 @@ const { pool, withTransaction } = require('./pool');
 async function seed() {
   console.log('Seeding baseline data...');
   await withTransaction(async (client) => {
-    // Admin user
     const adminPass = await bcrypt.hash('Admin@12345', 10);
     const adminRes = await client.query(
       `INSERT INTO users (username, email, mobile, password_hash, role, email_verified)
        VALUES ('admin', 'admin@quizarena.app', '9999999999', $1, 'admin', true)
-       ON CONFLICT (username) DO NOTHING RETURNING id`,
+       ON CONFLICT (username) DO UPDATE SET password_hash = $1, role = 'admin'
+       RETURNING id`,
       [adminPass]
     );
-    if (adminRes.rows[0]) {
-      await client.query(
-        `INSERT INTO profiles (user_id, full_name, referral_code)
-         VALUES ($1, 'Platform Admin', 'ADMIN0001')`,
-        [adminRes.rows[0].id]
-      );
-    }
+    const adminId = adminRes.rows[0].id;
+    await client.query(
+      `INSERT INTO profiles (user_id, full_name, referral_code)
+       VALUES ($1, 'Platform Admin', 'ADMIN0001')
+       ON CONFLICT (user_id) DO NOTHING`,
+      [adminId]
+    );
 
     // Badges
     const badges = [
