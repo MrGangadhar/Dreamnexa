@@ -40,3 +40,15 @@ export const useWithdrawMutation = () => {
     },
   });
 };
+
+export const useRedeemCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: walletApi.redeemCoupon,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['walletSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['pointsHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['prizeHistory'] });
+    },
+  });
+};

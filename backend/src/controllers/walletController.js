@@ -180,10 +180,99 @@ async function withdraw(req, res, next) {
   }
 }
 
+async function redeemCoupon(req, res, next) {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Coupon code is required.' });
+
+    const result = await withTransaction(async (client) => {
+      // Fetch the coupon with a row lock
+      const couponRes = await client.query(
+        `SELECT * FROM coupons WHERE code = $1 FOR UPDATE`,
+        [code.toUpperCase().trim()]
+      );
+      if (!couponRes.rows[0]) throw Object.assign(new Error('Invalid coupon code.'), { status: 400 });
+      const coupon = couponRes.rows[0];
+
+      if (!coupon.is_active) throw Object.assign(new Error('This coupon is no longer active.'), { status: 400 });
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+        throw Object.assign(new Error('This coupon has expired.'), { status: 400 });
+      }
+      if (coupon.max_redemptions !== null && coupon.redemptions_count >= coupon.max_redemptions) {
+        throw Object.assign(new Error('This coupon has reached its maximum redemptions.'), { status: 400 });
+      }
+
+      // Check if user already redeemed this coupon
+      const alreadyRes = await client.query(
+        `SELECT id FROM coupon_redemptions WHERE user_id = $1 AND coupon_id = $2`,
+        [req.user.id, coupon.id]
+      );
+      if (alreadyRes.rows[0]) {
+        throw Object.assign(new Error('You have already redeemed this coupon.'), { status: 400 });
+      }
+
+      const pointsAwarded = parseInt(coupon.points, 10) || 0;
+      const rewardAwarded = parseFloat(coupon.reward_amount) || 0;
+
+      // Award points
+      if (pointsAwarded > 0) {
+        const pointsService = require('../utils/pointsService');
+        await pointsService.credit(client, {
+          userId: req.user.id,
+          amount: pointsAwarded,
+          type: 'admin_adjustment',
+          description: `Coupon redeemed: ${coupon.code}`,
+        });
+      }
+
+      // Award prize balance
+      if (rewardAwarded > 0) {
+        await client.query(
+          `INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`,
+          [req.user.id]
+        );
+        await client.query(
+          `UPDATE wallets SET
+            available_prize = available_prize + $1,
+            lifetime_prize  = lifetime_prize + $1,
+            updated_at = now()
+           WHERE user_id = $2`,
+          [rewardAwarded, req.user.id]
+        );
+      }
+
+      // Record the redemption
+      await client.query(
+        `INSERT INTO coupon_redemptions (coupon_id, user_id, points_awarded, reward_awarded)
+         VALUES ($1, $2, $3, $4)`,
+        [coupon.id, req.user.id, pointsAwarded, rewardAwarded]
+      );
+
+      // Increment redemptions count
+      await client.query(
+        `UPDATE coupons SET redemptions_count = redemptions_count + 1 WHERE id = $1`,
+        [coupon.id]
+      );
+
+      return { pointsAwarded, rewardAwarded, code: coupon.code };
+    });
+
+    res.json({
+      message: `Coupon "${result.code}" redeemed successfully! 🎉`,
+      pointsAwarded: result.pointsAwarded,
+      rewardAwarded: result.rewardAwarded,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+}
+
 module.exports = {
   getWalletSummary,
   getPointsHistory,
   getPrizeHistory,
   getWithdrawHistory,
-  withdraw
+  withdraw,
+  redeemCoupon,
 };

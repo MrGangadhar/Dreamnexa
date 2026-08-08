@@ -8,6 +8,7 @@ import {
   usePrizeHistory,
   useWithdrawHistory,
   useWithdrawMutation,
+  useRedeemCouponMutation,
 } from '../hooks/useWallet';
 import '../styles/wallet.css';
 
@@ -20,6 +21,8 @@ export default function Wallet() {
   const [withdrawMethod, setWithdrawMethod] = useState('UPI');
 
   const withdrawMutation = useWithdrawMutation();
+  const redeemMutation = useRedeemCouponMutation();
+  const [couponCode, setCouponCode] = useState('');
 
   const handleWithdraw = (e) => {
     e.preventDefault();
@@ -45,6 +48,20 @@ export default function Wallet() {
         },
       }
     );
+  };
+
+  const handleRedeemCoupon = (e) => {
+    e.preventDefault();
+    if (!couponCode.trim()) { toast.error('Enter a coupon code.'); return; }
+    redeemMutation.mutate(couponCode.trim(), {
+      onSuccess: (data) => {
+        toast.success(data.message || 'Coupon redeemed!');
+        setCouponCode('');
+      },
+      onError: (err) => {
+        toast.error(err.response?.data?.error || 'Failed to redeem coupon.');
+      },
+    });
   };
 
   if (isSummaryLoading) {
@@ -124,6 +141,29 @@ export default function Wallet() {
           <li>Prize Wallet balance can be withdrawn once withdrawal conditions are met.</li>
           <li>Progress resets only after reward is successfully credited.</li>
         </ul>
+      </div>
+
+      {/* Redeem Coupon */}
+      <div className="info-card" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(59,130,246,0.08) 100%)', borderColor: 'rgba(139,92,246,0.25)' }}>
+        <h3 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>🎫 Redeem Coupon</h3>
+        <form onSubmit={handleRedeemCoupon} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Enter coupon code (e.g. WELCOME100)"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+            style={{ flex: 1, minWidth: 200, letterSpacing: '0.05em', fontWeight: 600, textTransform: 'uppercase' }}
+          />
+          <button
+            type="submit"
+            className="withdraw-btn"
+            disabled={redeemMutation.isPending || !couponCode.trim()}
+            style={{ whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)' }}
+          >
+            {redeemMutation.isPending ? 'Redeeming…' : '🎁 Redeem'}
+          </button>
+        </form>
       </div>
 
       {/* History Tabs */}

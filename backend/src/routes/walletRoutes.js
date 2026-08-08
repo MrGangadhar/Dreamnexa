@@ -12,5 +12,6 @@ router.get('/history', wc.getPointsHistory);
 router.get('/prize-history', wc.getPrizeHistory);
 router.get('/withdraw-history', wc.getWithdrawHistory);
 router.post('/withdraw', wc.withdraw);
+router.post('/redeem-coupon', wc.redeemCoupon);
 
 module.exports = router;

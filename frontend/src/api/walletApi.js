@@ -10,4 +10,6 @@ export const walletApi = {
   getWithdrawHistory: () => api.get('/wallet/withdraw-history').then((res) => res.data),
   
   withdraw: (payload) => api.post('/wallet/withdraw', payload).then((res) => res.data),
+
+  redeemCoupon: (code) => api.post('/wallet/redeem-coupon', { code }).then((res) => res.data),
 };

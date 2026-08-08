@@ -39,6 +39,7 @@ async function migrate() {
     await runSqlFile('newsContentSchema.sql');
     await runSqlFile('newsSchema.sql');
     await runSqlFile('walletSchema.sql');
+    await runSqlFile('couponSchema.sql');
   } catch (err) {
     console.error('✖ Migration failed:', err);
     process.exitCode = 1;

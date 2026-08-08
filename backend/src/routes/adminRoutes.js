@@ -17,8 +17,24 @@ router.get('/quizzes', adminController.listQuizzes);
 router.post('/quizzes', adminController.createQuiz);
 
 router.get('/users', adminController.listUsers);
+router.get('/users/:id', adminController.getUserDetails);
+router.put('/users/:id', adminController.updateUserAccess);
+router.delete('/users/:id', adminController.deleteUser);
 router.patch('/users/:id/status', adminController.setUserStatus);
 router.post('/users/:id/points-adjustment', adminController.adjustPoints);
+router.post('/users/:id/wallet-adjustment', adminController.adjustUserWallet);
+router.post('/users/bulk-credit', adminController.bulkCreditPoints);
+
+router.get('/logs', adminController.getAdminLogs);
+
+router.get('/coupons', adminController.listCoupons);
+router.post('/coupons', adminController.createCoupon);
+router.put('/coupons/:id', adminController.updateCoupon);
+router.delete('/coupons/:id', adminController.deleteCoupon);
+router.get('/coupons/redemptions', adminController.listCouponRedemptions);
+
+router.get('/withdrawals', adminController.listWithdrawals);
+router.put('/withdrawals/:id', adminController.updateWithdrawalStatus);
 
 router.post('/announcements', adminController.createAnnouncement);
 
