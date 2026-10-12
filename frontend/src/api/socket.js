@@ -17,7 +17,7 @@ export function getSocket() {
   // backend; in production the frontend and backend are typically served
   // from (or behind) the same origin. Override with VITE_SOCKET_URL for a
   // split-origin deployment.
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || (import.meta.env.PROD ? 'https://dreamnexa-backend-549681025567.asia-south1.run.app' : window.location.origin);
   const token = localStorage.getItem('accessToken');
 
   socket = io(socketUrl, {
