@@ -61,6 +61,21 @@ function buildPoolConfig() {
     timezone: 'Z',
   };
 
+  const socketPath = process.env.INSTANCE_UNIX_SOCKET
+    || process.env.DB_SOCKET_PATH
+    || (process.env.INSTANCE_CONNECTION_NAME ? `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}` : null)
+    || (process.env.DB_HOST && process.env.DB_HOST.startsWith('/cloudsql/') ? process.env.DB_HOST : null);
+
+  if (socketPath) {
+    return {
+      socketPath,
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'dreamnexa',
+      ...base,
+    };
+  }
+
   return {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 3306),
