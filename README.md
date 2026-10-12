@@ -1,4 +1,4 @@
-# QuizArena
+# DreamNexa
 
 A free-to-play, points-based student quiz contest platform. Same live
 "seats fill → contest locks → next one auto-opens" workflow you'd see on

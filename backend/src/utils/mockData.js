@@ -115,7 +115,7 @@ function getDemoUser(emailOrUsername) {
   // Previously this always returned role: 'student' (from demoProfile),
   // even when the admin username/email was used to log in — so in mock-data
   // fallback mode, admin login silently landed on the student dashboard.
-  const isAdmin = normalized === 'admin' || normalized === 'admin@quizarena.app';
+  const isAdmin = normalized === 'admin' || normalized === 'admin@dreamnexa.com' || normalized === 'admin@quizarena.app';
   return {
     ...demoProfile,
     username: normalized.includes('@') ? demoProfile.username : normalized || demoProfile.username,

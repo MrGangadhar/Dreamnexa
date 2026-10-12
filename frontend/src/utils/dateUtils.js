@@ -1,5 +1,5 @@
 /**
- * dateUtils.js — lightweight date formatting utilities for QuizArena News.
+ * dateUtils.js — lightweight date formatting utilities for DreamNexa News.
  * Does NOT import any external library to keep the bundle small.
  */
 

@@ -1,4 +1,4 @@
-# robots.txt for QuizArena / DreamNexa
+# robots.txt for DreamNexa
 User-agent: *
 Allow: /
 Allow: /jobs

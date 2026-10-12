@@ -1,5 +1,5 @@
 /**
- * Navbar.jsx — QuizArena top navigation bar
+ * Navbar.jsx — DreamNexa top navigation bar
  * ─────────────────────────────────────────────────────────────────────────────
  * Includes:
  *   - Logo + brand

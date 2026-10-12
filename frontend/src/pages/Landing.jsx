@@ -113,7 +113,7 @@ export default function Landing() {
       <section style={{ padding: '60px 0', background: 'var(--bg-card)', borderTop: '1px solid var(--border)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <h2 style={{ fontSize: 28 }}>Why QuizArena?</h2>
+            <h2 style={{ fontSize: 28 }}>Why DreamNexa?</h2>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24 }}>
             {FEATURES.map(({ icon, title, body }) => (

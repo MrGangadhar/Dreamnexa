@@ -1,7 +1,7 @@
 /**
  * Points Service
  * ---------------------------------------------------------------------
- * QuizArena uses an in-app points ledger instead of a real-money wallet.
+ * DreamNexa uses an in-app points ledger instead of a real-money wallet.
  *
  * Hard rules enforced by design:
  *   1. Points can NEVER be purchased with real money — there is no

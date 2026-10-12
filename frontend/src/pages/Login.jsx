@@ -112,7 +112,7 @@ export default function Login() {
 
           <div style={{ textAlign: 'center', marginTop: 20 }}>
             <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-              New to QuizArena?{' '}
+              New to DreamNexa?{' '}
               <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 700 }}>Create free account →</Link>
             </p>
           </div>

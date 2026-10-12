@@ -152,23 +152,26 @@ export default function PrivacyPolicy() {
               </p>
             </Section>
 
-            <Section id="cookies" title="6. Cookies">
+            <Section id="cookies" title="6. Cookies & Tracking Technologies">
               <p>
-                We use the following types of browser storage:
+                We and our partners use cookies and similar browser storage technologies for essential functionality, analytics, and advertising:
               </p>
               <ul style={{ paddingLeft: 20, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <li><strong style={{ color: 'var(--text-primary)' }}>localStorage:</strong> We store your authentication tokens (JSON Web Tokens) in localStorage for session management. These are required for the platform to function.</li>
                 <li><strong style={{ color: 'var(--text-primary)' }}>sessionStorage:</strong> We temporarily store your quiz answers in session storage to prevent accidental loss if your browser refreshes. This data is cleared once you submit your quiz.</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Advertising & Analytics Cookies:</strong> Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to our website or other websites across the Internet.</li>
               </ul>
-              <p style={{ marginTop: 12 }}>
-                We do not currently use third-party advertising cookies. If this changes in the future, we will update this policy and seek your consent where required by law.
-              </p>
             </Section>
 
-            <Section id="advertising" title="7. Advertising">
+            <Section id="advertising" title="7. Google AdSense & Third-Party Advertising">
               <p>
-                {PLATFORM_NAME} may display advertisements. If we do, we use contextual advertising that does not rely on tracking your browsing behaviour across other websites. We do not share your personal data with advertisers for targeting purposes.
+                {PLATFORM_NAME} partners with third-party advertising networks, including Google AdSense, to display advertisements when you visit our website:
               </p>
+              <ul style={{ paddingLeft: 20, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li>Google's use of advertising cookies enables it and its partners to serve ads to our users based on their visits to our website and/or other sites on the Internet.</li>
+                <li>Users may opt out of personalized advertising at any time by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Google Ads Settings</a>.</li>
+                <li>Alternatively, users can opt out of a third-party vendor's use of cookies for personalized advertising by visiting <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>aboutads.info</a> or <a href="https://youronlinechoices.eu/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Your Online Choices</a>.</li>
+              </ul>
             </Section>
 
             <Section id="third-party" title="8. Third-Party Services">

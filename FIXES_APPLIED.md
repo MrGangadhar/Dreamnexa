@@ -63,7 +63,7 @@ withdrawals banner, "Contest Status Breakdown", "Top Colleges", and the
 instead of being static/dead.
 
 ## 7. Admin panel showed the public site nav on top of it
-Every admin screenshot showed the QuizArena public navbar/points-badge and
+Every admin screenshot showed the DreamNexa public navbar/points-badge and
 bottom tab bar layered above the Admin panel's own sidebar — because
 `App.jsx` renders `<Navbar/>` and `<BottomNav/>` unconditionally on every
 route including `/admin`. Both now return `null` on `/admin/*` routes

@@ -18,14 +18,14 @@ export default function TermsOfService() {
           1. Acceptance of Terms
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
-          By accessing or using QuizArena / DreamNexa ("Platform"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform.
+          By accessing or using DreamNexa ("Platform"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform.
         </p>
 
         <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 25, marginBottom: 15, color: 'var(--text-primary)' }}>
           2. Platform Purpose & Points System
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
-          QuizArena is an educational, free-to-play points-based contest platform. All points, badges, and rewards earned on this Platform are digital gamification items only. Points have no monetary cash value, cannot be purchased with real money, and cannot be cashed out.
+          DreamNexa is an educational, free-to-play points-based contest platform. All points, badges, and rewards earned on this Platform are digital gamification items only. Points have no monetary cash value, cannot be purchased with real money, and cannot be cashed out.
         </p>
 
         <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 25, marginBottom: 15, color: 'var(--text-primary)' }}>
