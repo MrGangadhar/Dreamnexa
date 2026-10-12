@@ -973,11 +973,12 @@
 .sidebar-brand-icon {
   width: 36px; height: 36px;
   border-radius: 8px;
-  background: var(--accent);
+  background: linear-gradient(135deg, #7c3aed 0%, #C8102E 100%);
   display: flex; align-items: center; justify-content: center;
   color: #fff;
   font-size: 20px;
   font-weight: 900;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25);
 }
 .sidebar-brand-name {
   font-size: 20px;

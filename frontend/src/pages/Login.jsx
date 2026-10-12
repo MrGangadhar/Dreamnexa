@@ -54,13 +54,13 @@ export default function Login() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 60, height: 60,
-            background: 'var(--grad-accent)',
+            background: 'linear-gradient(135deg, #7c3aed 0%, #C8102E 100%)',
             borderRadius: 18,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 30,
-            color: '#001A14', margin: '0 auto 14px',
-            boxShadow: 'var(--shadow-accent)',
-          }}>Q</div>
+            fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 32,
+            color: '#ffffff', margin: '0 auto 14px',
+            boxShadow: '0 8px 24px rgba(124, 58, 237, 0.3)',
+          }}>D</div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 26, marginBottom: 6 }}>Welcome Back!</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Log in to continue playing</p>
         </div>

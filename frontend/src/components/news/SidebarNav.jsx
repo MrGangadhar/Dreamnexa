@@ -119,9 +119,9 @@ export default function SidebarNav({ isOpen, onClose }) {
             {/* Header */}
             <div className="sidebar-header">
               <Link to="/" className="sidebar-brand" onClick={onClose}>
-                <div className="sidebar-brand-icon">Q</div>
+                <div className="sidebar-brand-icon" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #C8102E 100%)', color: '#fff', fontWeight: 900 }}>D</div>
                 <span className="sidebar-brand-name">
-                  Quiz<span style={{ color: 'var(--accent)' }}>Arena</span>
+                  Dream<span style={{ color: 'var(--accent)' }}>Nexa</span>
                 </span>
               </Link>
               <button className="sidebar-close" onClick={onClose} aria-label="Close menu">

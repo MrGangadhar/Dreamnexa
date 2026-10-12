@@ -73,18 +73,20 @@ export default function Navbar() {
           {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
             <div style={{
-              width: 32, height: 32,
-              background: 'var(--accent)',
-              borderRadius: 6,
+              width: 34, height: 34,
+              background: 'linear-gradient(135deg, #7c3aed 0%, #C8102E 100%)',
+              borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 800, color: 'white',
-            }}>Q</div>
+              fontSize: 18, fontWeight: 900, color: 'white',
+              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+            }}>D</div>
             <span style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 800, fontSize: 20,
               color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
             }}>
-              Quiz<span style={{ color: 'var(--accent)' }}>Arena</span>
+              Dream<span style={{ color: 'var(--accent)' }}>Nexa</span>
             </span>
           </Link>
 
