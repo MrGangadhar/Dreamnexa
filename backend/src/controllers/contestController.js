@@ -14,7 +14,8 @@ async function listContests(req, res, next) {
     const result = await query(
       `SELECT c.id, c.name, c.status, c.entry_points_cost, c.max_participants,
               c.current_participants, c.reward_structure, c.starts_at, c.ends_at,
-              c.sequence_number, q.title AS quiz_title, q.duration_minutes
+              c.sequence_number, q.title AS quiz_title, q.duration_minutes,
+              q.proctoring_enabled
        FROM contests c
        LEFT JOIN quizzes q ON q.id = c.quiz_id
        ${where}
@@ -39,7 +40,8 @@ async function listContests(req, res, next) {
 async function getContest(req, res, next) {
   try {
     const contestRes = await query(
-      `SELECT c.*, q.title AS quiz_title, q.duration_minutes, q.negative_marking
+      `SELECT c.*, q.title AS quiz_title, q.duration_minutes, q.negative_marking,
+              q.proctoring_enabled
        FROM contests c LEFT JOIN quizzes q ON q.id = c.quiz_id
        WHERE c.id = $1`,
       [req.params.id]
@@ -77,6 +79,27 @@ async function joinContest(req, res, next) {
       contestEngine.joinContest(client, { contestId: req.params.id, userId: req.user.id })
     );
     res.json({ message: 'Joined contest successfully.', contest: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listMyContests(req, res, next) {
+  try {
+    const result = await query(
+      `SELECT c.id, c.name, c.status, c.entry_points_cost, c.max_participants,
+              c.current_participants, c.reward_structure, c.starts_at, c.ends_at,
+              c.sequence_number, q.title AS quiz_title, q.duration_minutes,
+              q.proctoring_enabled, cp.joined_at
+       FROM contest_participants cp
+       JOIN contests c ON c.id = cp.contest_id
+       LEFT JOIN quizzes q ON q.id = c.quiz_id
+       WHERE cp.user_id = $1
+       ORDER BY cp.joined_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    res.json(result.rows);
   } catch (err) {
     next(err);
   }
@@ -120,4 +143,4 @@ async function getContestLeaderboard(req, res, next) {
   }
 }
 
-module.exports = { listContests, getContest, joinContest, getLeaderboard, getContestLeaderboard };
+module.exports = { listContests, getContest, joinContest, getLeaderboard, getContestLeaderboard, listMyContests };

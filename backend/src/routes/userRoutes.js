@@ -4,6 +4,10 @@ const userController = require('../controllers/userController');
 
 const router = express.Router();
 
+// Public endpoint — no auth required for contact form
+router.post('/contact', userController.submitContactForm);
+
+// Authenticated user endpoints
 router.use(requireAuth);
 router.get('/me', userController.getMe);
 router.patch('/me', userController.updateProfile);

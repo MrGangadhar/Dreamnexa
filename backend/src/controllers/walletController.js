@@ -31,6 +31,23 @@ async function processAutoRewards(client, userId, totalPoints) {
     claimedCount += 1;
     newRewards += 1;
   }
+
+  // Surface the milestone to the user immediately (previously this was
+  // silent — the wallet balance updated but nothing told the user, so
+  // they'd only ever notice it if they happened to open the Wallet page).
+  if (newRewards > 0) {
+    await client.query(
+      `INSERT INTO notifications (user_id, type, title, message)
+       VALUES ($1, 'reward_earned', '🎉 Reward unlocked!', $2)`,
+      [
+        userId,
+        newRewards === 1
+          ? `You've crossed ${TARGET_POINTS} points and earned ₹${REWARD_AMOUNT.toFixed(2)}! Head to your Wallet to request a withdrawal.`
+          : `You've earned ${newRewards} rewards worth ₹${(REWARD_AMOUNT * newRewards).toFixed(2)} total! Head to your Wallet to request a withdrawal.`,
+      ]
+    );
+  }
+
   return claimedCount;
 }
 
@@ -136,6 +153,72 @@ async function getWithdrawHistory(req, res, next) {
   }
 }
 
+async function getPayoutDetails(req, res, next) {
+  try {
+    const result = await query(
+      `SELECT upi_id, account_holder, account_number, ifsc_code, bank_name, preferred_method, updated_at
+       FROM payout_details 
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updatePayoutDetails(req, res, next) {
+  try {
+    const { upi_id, account_holder, account_number, ifsc_code, bank_name, preferred_method } = req.body;
+    
+    const method = preferred_method === 'Bank' ? 'Bank' : 'UPI';
+    
+    const cleanUpi = upi_id ? upi_id.trim() : null;
+    const cleanHolder = account_holder ? account_holder.trim() : null;
+    const cleanAccNum = account_number ? account_number.trim() : null;
+    const cleanIfsc = ifsc_code ? ifsc_code.trim().toUpperCase() : null;
+    const cleanBank = bank_name ? bank_name.trim() : null;
+
+    if (method === 'UPI' && !cleanUpi) {
+      return res.status(400).json({ error: 'UPI ID is required when UPI is selected.' });
+    }
+    if (method === 'Bank' && (!cleanAccNum || !cleanIfsc)) {
+      return res.status(400).json({ error: 'Account number and IFSC code are required when Bank Transfer is selected.' });
+    }
+
+    const existingRes = await query(`SELECT id FROM payout_details WHERE user_id = $1`, [req.user.id]);
+    const exists = existingRes.rows && existingRes.rows.length > 0;
+
+    if (exists) {
+      await query(
+        `UPDATE payout_details 
+         SET upi_id = $1,
+             account_holder = $2,
+             account_number = $3,
+             ifsc_code = $4,
+             bank_name = $5,
+             preferred_method = $6,
+             updated_at = NOW()
+         WHERE user_id = $7`,
+        [cleanUpi, cleanHolder, cleanAccNum, cleanIfsc, cleanBank, method, req.user.id]
+      );
+    } else {
+      const { v4: uuidv4 } = require('uuid');
+      const id = uuidv4();
+      await query(
+        `INSERT INTO payout_details (id, user_id, upi_id, account_holder, account_number, ifsc_code, bank_name, preferred_method, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+        [id, req.user.id, cleanUpi, cleanHolder, cleanAccNum, cleanIfsc, cleanBank, method]
+      );
+    }
+
+    res.json({ message: 'Payment details updated successfully.' });
+
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function withdraw(req, res, next) {
   try {
     const { amount, method } = req.body;
@@ -159,6 +242,22 @@ async function withdraw(req, res, next) {
       if (available < withdrawAmount) {
         throw Object.assign(new Error('Insufficient prize balance'), { status: 400 });
       }
+
+      // Fetch saved payout details to snapshot
+      const payoutRes = await client.query(
+        `SELECT upi_id, account_holder, account_number, ifsc_code, bank_name, preferred_method
+         FROM payout_details WHERE user_id = $1`,
+        [req.user.id]
+      );
+      const payoutRow = payoutRes.rows[0];
+      const snapshot = payoutRow ? {
+        upi_id: payoutRow.upi_id,
+        account_holder: payoutRow.account_holder,
+        account_number: payoutRow.account_number,
+        ifsc_code: payoutRow.ifsc_code,
+        bank_name: payoutRow.bank_name,
+        preferred_method: payoutRow.preferred_method
+      } : null;
       
       await client.query(
         `UPDATE wallets SET available_prize = available_prize - $1, updated_at = now() WHERE user_id = $2`,
@@ -166,9 +265,9 @@ async function withdraw(req, res, next) {
       );
       
       const insertRes = await client.query(
-        `INSERT INTO withdrawal_history (user_id, amount, method, status)
-         VALUES ($1, $2, $3, 'Processing') RETURNING id`,
-        [req.user.id, withdrawAmount, method]
+        `INSERT INTO withdrawal_history (user_id, amount, method, payout_snapshot, status)
+         VALUES ($1, $2, $3, $4, 'Processing') RETURNING id`,
+        [req.user.id, withdrawAmount, method || (payoutRow ? payoutRow.preferred_method : 'UPI'), snapshot]
       );
       
       return insertRes.rows[0].id;
@@ -273,6 +372,8 @@ module.exports = {
   getPointsHistory,
   getPrizeHistory,
   getWithdrawHistory,
+  getPayoutDetails,
+  updatePayoutDetails,
   withdraw,
   redeemCoupon,
 };

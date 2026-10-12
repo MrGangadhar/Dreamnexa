@@ -10,9 +10,12 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again later.' },
 });
 
+const { requireAuth } = require('../middleware/auth');
+
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
+router.post('/change-password', requireAuth, authController.changePassword);
 
 module.exports = router;

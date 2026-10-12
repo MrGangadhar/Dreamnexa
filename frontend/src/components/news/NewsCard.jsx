@@ -18,7 +18,13 @@ import { motion } from 'framer-motion';
 import { FiShare2, FiBookmark, FiUser, FiClock, FiExternalLink, FiPlay } from 'react-icons/fi';
 import { FaBookmark } from 'react-icons/fa';
 import { formatDistanceToNow } from '../../utils/dateUtils';
-import { estimateReadTime, getCategoryEmoji, getCategoryLabel } from '../../utils/newsUtils';
+import {
+  estimateReadTime,
+  getCategoryEmoji,
+  getCategoryLabel,
+  getYouTubeThumbnail,
+  resolveImageUrl,
+} from '../../utils/newsUtils';
 
 const cardVariants = {
   hidden:  { opacity: 0, y: 20 },
@@ -50,6 +56,7 @@ export default function NewsCard({
   const categoryLabel = getCategoryLabel(displayCategory || '');
   const emoji        = getCategoryEmoji(displayCategory);
   const showCategory = displayCategory && displayCategory !== 'all';
+  const imageUrl     = resolveImageUrl(article.urlToImage) || (isVlog ? getYouTubeThumbnail(article.vlogUrl) : null);
 
   return (
     <motion.article
@@ -64,12 +71,13 @@ export default function NewsCard({
     >
       {/* ── Image ──────────────────────────────────────────────── */}
       <div className="news-card-img-wrap">
-        {article.urlToImage && !imgError ? (
+        {imageUrl && !imgError ? (
           <img
-            src={article.urlToImage}
+            src={imageUrl}
             alt={article.title}
             loading="lazy"
             onError={() => setImgError(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
           />
         ) : (
           <div className="news-card-img-fallback">{isVlog ? '🎥' : emoji}</div>

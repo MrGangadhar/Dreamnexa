@@ -80,14 +80,18 @@ const demoBadges = [
 ];
 
 function isMockDataEnabled() {
-  return process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL;
+  // DreamNexa always runs on a local SQLite file (see db/pool.js), so unlike
+  // the old Postgres setup there's no "DATABASE_URL missing" case to guard
+  // against — a real database is always available. Mock data is now purely
+  // an explicit opt-in, useful for frontend-only demos/screenshots.
+  return process.env.USE_MOCK_DATA === 'true';
 }
 
 function shouldUseMockData(err) {
   if (isMockDataEnabled()) return true;
   if (!err) return false;
   const message = (err.message || '').toLowerCase();
-  return ['econnrefused', 'password authentication failed', 'relation', 'does not exist', 'connect', 'timeout', 'column'].some((token) => message.includes(token));
+  return ['no such table', 'no such column', 'sqlite_'].some((token) => message.includes(token));
 }
 
 function getDemoContestById(id) {
@@ -107,10 +111,17 @@ function getDemoContestById(id) {
 
 function getDemoUser(emailOrUsername) {
   const normalized = (emailOrUsername || '').toLowerCase();
+  // The login screen advertises "admin / Admin@12345" as a demo credential.
+  // Previously this always returned role: 'student' (from demoProfile),
+  // even when the admin username/email was used to log in — so in mock-data
+  // fallback mode, admin login silently landed on the student dashboard.
+  const isAdmin = normalized === 'admin' || normalized === 'admin@quizarena.app';
   return {
     ...demoProfile,
     username: normalized.includes('@') ? demoProfile.username : normalized || demoProfile.username,
     email: normalized.includes('@') ? normalized : demoProfile.email,
+    role: isAdmin ? 'admin' : demoProfile.role,
+    full_name: isAdmin ? 'Platform Admin' : demoProfile.full_name,
   };
 }
 

@@ -279,10 +279,52 @@ label {
 .font-bold    { font-weight: 600; }
 .w-full       { width: 100%; }
 
+/* ── Responsive grid helpers ──────────────────────────────────────────
+   Use these instead of inline gridTemplateColumns wherever the layout
+   needs to actually collapse on small screens (inline React styles
+   can't hold media queries, so plain `style={{gridTemplateColumns}}`
+   is what breaks on mobile). */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* Admin: fixed-width "form | list" split panels — stack on tablet/mobile
+   instead of forcing horizontal scroll. */
+.admin-split-360 { display: grid; grid-template-columns: 360px 1fr; gap: 18px; align-items: flex-start; }
+.admin-split-420 { display: grid; grid-template-columns: 420px 1fr; gap: 18px; align-items: flex-start; }
+.admin-mid       { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media (max-width: 900px) {
+  .admin-split-360, .admin-split-420, .admin-mid { grid-template-columns: 1fr; }
+}
+
+/* Catch-all: any admin grid tagged with this class keeps its inline
+   (possibly asymmetric) column ratios on desktop, but always collapses
+   to a single column below tablet width instead of overflowing. */
+.admin-responsive-grid {
+  overflow-x: visible;
+}
+@media (max-width: 900px) {
+  .admin-responsive-grid { grid-template-columns: 1fr !important; }
+}
+
 /* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr !important; }
+}
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
 }
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
+}
+
+/* ── Mobile refinements (Dream11-style compact header/stat cards) ──── */
+@media (max-width: 480px) {
+  .container { padding: 0 12px; }
+  .table th, .table td { padding: 10px 8px; font-size: 13px; }
 }

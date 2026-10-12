@@ -16,9 +16,11 @@ import { useAuth } from '../context/AuthContext';
 import SidebarNav from './news/SidebarNav';
 
 const NAV_LINKS = [
-  { to: '/contests',  label: 'Contests' },
-  { to: '/news',      label: 'News', isNew: true },
-  { to: '/leaderboard', label: 'Leaderboard' },
+  { to: '/contests',        label: 'Contests' },
+  { to: '/current-affairs', label: 'Current Affairs', isNew: true },
+  { to: '/jobs',            label: 'Govt Jobs' },
+  { to: '/news',            label: 'News' },
+  { to: '/leaderboard',     label: 'Leaderboard' },
 ];
 
 export default function Navbar() {
@@ -26,6 +28,12 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // The Admin panel (/admin) renders its own sidebar/header shell — the
+  // public site navbar (with student-facing links like Contests/News/
+  // Dashboard and the points badge) was rendering on top of it regardless,
+  // which is what made every admin screenshot show both navs stacked.
+  if (location.pathname.startsWith('/admin')) return null;
 
   return (
     <>

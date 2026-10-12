@@ -16,6 +16,8 @@
  * ---------------------------------------------------------------------
  */
 
+const { triggerAutoBackup } = require('./autoBackup');
+
 async function getBalance(client, userId) {
   const res = await client.query(
     `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM points_transactions WHERE user_id = $1`,
@@ -35,6 +37,7 @@ async function credit(client, { userId, amount, type, referenceId = null, descri
     `UPDATE profiles SET total_points = total_points + $1, updated_at = now() WHERE user_id = $2`,
     [amount, userId]
   );
+  triggerAutoBackup('User points credited');
 }
 
 async function debit(client, { userId, amount, type, referenceId = null, description = '' }) {
@@ -55,6 +58,8 @@ async function debit(client, { userId, amount, type, referenceId = null, descrip
     `UPDATE profiles SET total_points = total_points - $1, updated_at = now() WHERE user_id = $2`,
     [amount, userId]
   );
+  triggerAutoBackup('User points debited');
 }
 
 module.exports = { getBalance, credit, debit };
+

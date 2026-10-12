@@ -7,17 +7,34 @@ import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
 
-import Landing     from './pages/Landing';
-import Login       from './pages/Login';
-import Register    from './pages/Register';
-import Contests    from './pages/Contests';
+import Landing       from './pages/Landing';
+import Login         from './pages/Login';
+import Register      from './pages/Register';
+import Contests      from './pages/Contests';
 import ContestDetail from './pages/ContestDetail';
-import QuizPlay    from './pages/QuizPlay';
-import Leaderboard from './pages/Leaderboard';
-import Dashboard   from './pages/Dashboard';
-import Admin       from './pages/Admin';
-import News        from './pages/News';
-import Wallet      from './pages/Wallet';
+import QuizPlay      from './pages/QuizPlay';
+import Leaderboard   from './pages/Leaderboard';
+import Dashboard     from './pages/Dashboard';
+import Admin         from './pages/Admin';
+import News          from './pages/News';
+import CurrentAffairs from './pages/CurrentAffairs';
+import GovernmentJobs from './pages/GovernmentJobs';
+import Wallet        from './pages/Wallet';
+import HelpSupport   from './pages/HelpSupport';
+import ContactUs     from './pages/ContactUs';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import Settings      from './pages/Settings';
+import NotFound      from './pages/NotFound';
+
+// New Sidebar pages
+import DailyQuiz     from './pages/DailyQuiz';
+import MockTests     from './pages/MockTests';
+import Transactions  from './pages/Transactions';
+import Notifications from './pages/Notifications';
+import Bookmarks     from './pages/Bookmarks';
+import Profile       from './pages/Profile';
+import Logout        from './pages/Logout';
 
 // ── React Query client — 5-min stale time by default ──────────────────────
 const queryClient = new QueryClient({
@@ -39,28 +56,46 @@ export default function App() {
           <BottomNav />
 
           <Routes>
-            <Route path="/"           element={<Landing />} />
-            <Route path="/login"      element={<Login />} />
-            <Route path="/register"   element={<Register />} />
-            <Route path="/contests"   element={<Contests />} />
-            <Route path="/contests/:id" element={<ContestDetail />} />
-            <Route path="/contests/:contestId/play" element={<ProtectedRoute><QuizPlay /></ProtectedRoute>} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/dashboard"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/wallet"     element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
-            <Route path="/admin"      element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+            {/* Public routes */}
+            <Route path="/"              element={<Landing />} />
+            <Route path="/login"         element={<Login />} />
+            <Route path="/register"      element={<Register />} />
+            <Route path="/leaderboard"   element={<Leaderboard />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms"          element={<TermsOfService />} />
+            <Route path="/terms-and-conditions" element={<TermsOfService />} />
+            <Route path="/help-support"  element={<HelpSupport />} />
+            <Route path="/contact-us"    element={<ContactUs />} />
 
-            {/* ── Latest News Module ─────────────────────────────────── */}
-            <Route path="/news"       element={<News key="news" defaultCategory="all" />} />
-            <Route path="/jobs"       element={<News key="jobs" defaultCategory="jobs" />} />
-            <Route path="/current-affairs" element={<News key="ca" defaultCategory="all" />} />
+            {/* News/Content Module */}
+            <Route path="/news"           element={<News key="news" defaultCategory="all" />} />
+            <Route path="/news/:id"       element={<News key="news-detail" defaultCategory="all" />} />
+            <Route path="/jobs"           element={<GovernmentJobs />} />
+            <Route path="/government-jobs" element={<GovernmentJobs />} />
+            <Route path="/current-affairs" element={<CurrentAffairs />} />
+
+            {/* Contest routes */}
+            <Route path="/contests"       element={<Contests />} />
+            <Route path="/contests/:id"   element={<ContestDetail />} />
+            <Route path="/contests/:contestId/play" element={<ProtectedRoute><QuizPlay /></ProtectedRoute>} />
+
+            {/* Protected routes */}
+            <Route path="/dashboard"     element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/wallet"        element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+            <Route path="/settings"      element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/admin"         element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+
+            {/* Protected Sidebar Pages */}
+            <Route path="/daily-quiz"    element={<ProtectedRoute><DailyQuiz /></ProtectedRoute>} />
+            <Route path="/mock-tests"    element={<ProtectedRoute><MockTests /></ProtectedRoute>} />
+            <Route path="/transactions"  element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/bookmarks"     element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
+            <Route path="/profile"       element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/logout"        element={<Logout />} />
 
             {/* 404 */}
-            <Route path="*" element={
-              <div className="container" style={{ paddingTop: 80, textAlign: 'center' }}>
-                <h2>404 — Page not found.</h2>
-              </div>
-            } />
+            <Route path="*" element={<NotFound />} />
           </Routes>
 
           {/* Global toast notifications */}

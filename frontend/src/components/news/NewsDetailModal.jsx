@@ -16,29 +16,95 @@ import {
 } from 'react-icons/fi';
 import { FaBookmark } from 'react-icons/fa';
 import { formatDistanceToNow } from '../../utils/dateUtils';
-import { estimateReadTime, getCategoryEmoji } from '../../utils/newsUtils';
+import { estimateReadTime, getCategoryEmoji, getYouTubeThumbnail, resolveImageUrl } from '../../utils/newsUtils';
+import AdBanner from '../AdBanner';
 
 /**
- * Extract YouTube embed URL from various YouTube URL formats.
+ * Lightweight HTML sanitizer — allow-list only safe tags.
+ * Strips all other tags and dangerous attributes.
+ */
+const ALLOWED_TAGS = [
+  'p','br','b','strong','i','em','u','s','strike',
+  'h1','h2','h3','h4','h5','h6',
+  'ul','ol','li',
+  'blockquote','pre','code',
+  'a','img',
+  'table','thead','tbody','tr','th','td',
+  'span','div','figure','figcaption',
+  'hr',
+];
+const ALLOWED_ATTRS = ['href','src','alt','title','target','rel','style','class'];
+const FORBIDDEN_CSS = /expression|javascript|url\s*\(/i;
+
+function sanitizeHTML(html) {
+  if (!html) return '';
+  // If it looks like plain text (no <), wrap in paragraphs
+  if (!/<[a-z][\s\S]*>/i.test(html)) {
+    return html.split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
+  }
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  function clean(node) {
+    if (node.nodeType === Node.TEXT_NODE) return;
+    if (node.nodeType !== Node.ELEMENT_NODE) { node.remove(); return; }
+    const tag = node.tagName.toLowerCase();
+    if (!ALLOWED_TAGS.includes(tag)) {
+      // Replace node with its children (unwrap)
+      while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
+      node.remove();
+      return;
+    }
+    // Remove forbidden attributes
+    for (const attr of [...node.attributes]) {
+      if (!ALLOWED_ATTRS.includes(attr.name)) { node.removeAttribute(attr.name); continue; }
+      if (attr.name === 'href' || attr.name === 'src') {
+        if (/^javascript:/i.test(attr.value)) node.removeAttribute(attr.name);
+      }
+      if (attr.name === 'style' && FORBIDDEN_CSS.test(attr.value)) node.removeAttribute(attr.name);
+    }
+    if (tag === 'a') { node.setAttribute('target', '_blank'); node.setAttribute('rel', 'noopener noreferrer'); }
+    [...node.childNodes].forEach(clean);
+  }
+  [...el.childNodes].forEach(clean);
+  return el.innerHTML;
+}
+
+/**
+ * Extract YouTube embed URL strictly from valid YouTube URL formats.
+ * Returns null for any non-YouTube URL to prevent embedding internal site pages.
  */
 function getYouTubeEmbedUrl(url) {
-  if (!url) return null;
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // Never attempt to embed internal app routes or local paths
+  if (trimmed.startsWith('/') || trimmed.includes('localhost') || trimmed.includes('127.0.0.1')) {
+    return null;
+  }
+
   try {
-    const u = new URL(url);
+    const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    if (!u.hostname.includes('youtube.com') && !u.hostname.includes('youtu.be')) {
+      return null;
+    }
     // youtube.com/watch?v=xxx
-    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
-      return `https://www.youtube.com/embed/${u.searchParams.get('v')}`;
+    if (u.hostname.includes('youtube.com')) {
+      const v = u.searchParams.get('v');
+      if (v) return `https://www.youtube.com/embed/${v}`;
+      if (u.pathname.includes('/embed/')) return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      if (u.pathname.includes('/shorts/')) {
+        const shortId = u.pathname.split('/shorts/')[1]?.split('/')[0];
+        if (shortId) return `https://www.youtube.com/embed/${shortId}`;
+      }
     }
     // youtu.be/xxx
     if (u.hostname === 'youtu.be') {
-      return `https://www.youtube.com/embed${u.pathname}`;
-    }
-    // already an embed URL
-    if (u.pathname.includes('/embed/')) {
-      return url;
+      const id = u.pathname.replace(/^\//, '').split('?')[0];
+      if (id) return `https://www.youtube.com/embed/${id}`;
     }
   } catch { /* ignore */ }
-  return url; // fallback: use as-is
+  return null;
 }
 
 /**
@@ -150,13 +216,14 @@ export default function NewsDetailModal({
                 }}
               />
             </div>
-          ) : article.urlToImage ? (
+          ) : (resolveImageUrl(article.urlToImage) || (isVlog ? getYouTubeThumbnail(article.vlogUrl) : null)) ? (
             <img
-              src={article.urlToImage}
+              src={resolveImageUrl(article.urlToImage) || getYouTubeThumbnail(article.vlogUrl)}
               alt={article.title}
               className="detail-cover-img"
               loading="lazy"
               onError={(e) => { e.target.style.display = 'none'; }}
+              style={{ width: '100%', height: '320px', objectFit: 'cover', objectPosition: 'center', display: 'block', borderRadius: '12px' }}
             />
           ) : (
             <div className="detail-cover-fallback">{emoji}</div>
@@ -181,9 +248,15 @@ export default function NewsDetailModal({
             {/* Title */}
             <h1 className="detail-title">{article.title}</h1>
 
-            {/* Description / content */}
-            <div className="detail-description">
-              {article.content || article.description || 'No content available.'}
+            {/* Description / content — rendered as rich HTML */}
+            <div
+              className="detail-description rich-content"
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(article.content || article.description || '') }}
+            />
+
+            {/* Inline ad after article body */}
+            <div style={{ margin: '24px 0' }}>
+              <AdBanner position="inline" variant={1} dismissible={true} />
             </div>
 
             {/* Vlog external link */}
@@ -230,13 +303,14 @@ export default function NewsDetailModal({
                       style={{ cursor: 'pointer' }}
                       onClick={() => {/* parent handles navigation */}}
                     >
-                      {rel.urlToImage ? (
+                      {(resolveImageUrl(rel.urlToImage) || (rel.articleType === 'vlog' ? getYouTubeThumbnail(rel.vlogUrl) : null)) ? (
                         <img
-                          src={rel.urlToImage}
+                          src={resolveImageUrl(rel.urlToImage) || getYouTubeThumbnail(rel.vlogUrl)}
                           alt={rel.title}
                           className="related-img"
                           loading="lazy"
                           onError={(e) => { e.target.style.display = 'none'; }}
+                          style={{ width: '80px', height: '60px', objectFit: 'cover', objectPosition: 'center', borderRadius: '8px', flexShrink: 0 }}
                         />
                       ) : (
                         <div className="related-img" style={{

@@ -108,3 +108,56 @@ export function classifyError(error) {
   if (status === 429 || status === 426) return 'rateLimit';
   return 'generic';
 }
+
+/**
+ * Extract YouTube thumbnail from various YouTube URL formats.
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function getYouTubeThumbnail(url) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    let videoId = null;
+    if (u.hostname.includes('youtube.com')) {
+      videoId = u.searchParams.get('v');
+    } else if (u.hostname === 'youtu.be') {
+      videoId = u.pathname.replace(/^\//, '');
+    }
+    if (videoId) {
+      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Resolve an article image URL.
+ * Normalizes backend localhost URLs to relative /uploads so Vite dev proxy handles it directly,
+ * preventing cross-origin resource policy blocks.
+ * @param {string} url
+ * @returns {string}
+ */
+export function resolveImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // If localhost:5000/uploads or 127.0.0.1:5000/uploads, convert to relative /uploads
+  if (/^https?:\/\/(localhost|127\.0\.0\.1):5000\/uploads\//i.test(trimmed)) {
+    return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, '');
+  }
+
+  // If already absolute URL or data URL
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+
+  // If relative path like uploads/... or /uploads/...
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+

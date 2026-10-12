@@ -1,0 +1,16 @@
+# robots.txt for QuizArena / DreamNexa
+User-agent: *
+Allow: /
+Allow: /jobs
+Allow: /government-jobs
+Allow: /current-affairs
+Allow: /privacy-policy
+Allow: /terms
+Allow: /contact-us
+Allow: /help-support
+Allow: /contests
+
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://dreamnexa.com/sitemap.xml

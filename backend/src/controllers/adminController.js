@@ -47,7 +47,7 @@ async function createTemplate(req, res, next) {
 async function listTemplates(req, res, next) {
   try {
     const result = await query(
-      `SELECT ct.*, q.title AS quiz_title,
+      `SELECT ct.*, q.title AS quiz_title, q.proctoring_enabled,
               (SELECT COUNT(*) FROM contests c WHERE c.template_id = ct.id) AS contests_spawned
        FROM contest_templates ct LEFT JOIN quizzes q ON q.id = ct.quiz_id
        ORDER BY ct.created_at DESC`
@@ -58,21 +58,52 @@ async function listTemplates(req, res, next) {
   }
 }
 
+
 async function updateTemplate(req, res, next) {
   try {
     const { id } = req.params;
     const { isActive, autoRegenerate, entryPointsCost, rewardStructure, name, description } = req.body;
+
+    // Build SET clause dynamically — COALESCE(null, boolCol) fails in MySQL
+    // prepared statements for TINYINT columns.
+    const sets = [];
+    const params = [];
+
+    if (isActive !== undefined) {
+      params.push(isActive ? 1 : 0);
+      sets.push(`is_active = $${params.length}`);
+    }
+    if (autoRegenerate !== undefined) {
+      params.push(autoRegenerate ? 1 : 0);
+      sets.push(`auto_regenerate = $${params.length}`);
+    }
+    if (entryPointsCost !== undefined) {
+      params.push(entryPointsCost);
+      sets.push(`entry_points_cost = $${params.length}`);
+    }
+    if (rewardStructure !== undefined) {
+      params.push(rewardStructure ? JSON.stringify(rewardStructure) : null);
+      sets.push(`reward_structure = $${params.length}`);
+    }
+    if (name !== undefined) {
+      params.push(name);
+      sets.push(`name = $${params.length}`);
+    }
+    if (description !== undefined) {
+      params.push(description);
+      sets.push(`description = $${params.length}`);
+    }
+
+    if (sets.length === 0) {
+      const existing = await query(`SELECT * FROM contest_templates WHERE id = $1`, [id]);
+      if (!existing.rows[0]) return res.status(404).json({ error: 'Template not found.' });
+      return res.json(existing.rows[0]);
+    }
+
+    params.push(id);
     const result = await query(
-      `UPDATE contest_templates SET
-        is_active = COALESCE($1, is_active),
-        auto_regenerate = COALESCE($2, auto_regenerate),
-        entry_points_cost = COALESCE($3, entry_points_cost),
-        reward_structure = COALESCE($4, reward_structure),
-        name = COALESCE($5, name),
-        description = COALESCE($6, description)
-       WHERE id = $7 RETURNING *`,
-      [isActive, autoRegenerate, entryPointsCost,
-       rewardStructure ? JSON.stringify(rewardStructure) : null, name, description, id]
+      `UPDATE contest_templates SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Template not found.' });
     res.json(result.rows[0]);
@@ -81,20 +112,23 @@ async function updateTemplate(req, res, next) {
   }
 }
 
+
 // ---- Quizzes -------------------------------------------------------------
 async function createQuiz(req, res, next) {
   try {
     const { title, description, instructions, durationMinutes = 15,
-            negativeMarking = 0, passingMarks = 0, questions = [] } = req.body;
+            negativeMarking = 0, passingMarks = 0, proctoringEnabled = true, questions = [] } = req.body;
     if (!title || questions.length === 0) {
       return res.status(400).json({ error: 'title and at least one question are required.' });
     }
 
+    const proctoringVal = proctoringEnabled !== false && proctoringEnabled !== 'false' && proctoringEnabled !== 0 && proctoringEnabled !== '0' ? 1 : 0;
+
     const result = await withTransaction(async (client) => {
       const quizRes = await client.query(
-        `INSERT INTO quizzes (title, description, instructions, duration_minutes, negative_marking, passing_marks, is_published, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,true,$7) RETURNING *`,
-        [title, description, instructions, durationMinutes, negativeMarking, passingMarks, req.user.id]
+        `INSERT INTO quizzes (title, description, instructions, duration_minutes, negative_marking, passing_marks, proctoring_enabled, is_published, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8) RETURNING *`,
+        [title, description, instructions, durationMinutes, negativeMarking, passingMarks, proctoringVal, req.user.id]
       );
       const quiz = quizRes.rows[0];
 
@@ -115,6 +149,49 @@ async function createQuiz(req, res, next) {
     });
 
     res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/admin/quizzes/:id — toggle AI proctoring or publish status per-quiz
+async function updateQuiz(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { proctoringEnabled, isPublished } = req.body;
+
+    // Build SET clause dynamically — avoid passing NULL for TINYINT columns in
+    // COALESCE() because MySQL's binary prepared-statement protocol rejects that
+    // combination with "Incorrect arguments to COM_STMT_EXECUTE".
+    const sets = [];
+    const params = [];
+
+    if (proctoringEnabled !== undefined) {
+      const val = (proctoringEnabled === true || proctoringEnabled === 'true' || proctoringEnabled === 1 || proctoringEnabled === '1') ? 1 : 0;
+      params.push(val);
+      sets.push(`proctoring_enabled = $${params.length}`);
+    }
+
+    if (isPublished !== undefined) {
+      const val = (isPublished === true || isPublished === 'true' || isPublished === 1 || isPublished === '1') ? 1 : 0;
+      params.push(val);
+      sets.push(`is_published = $${params.length}`);
+    }
+
+    if (sets.length === 0) {
+      // Nothing to update — just return the current row
+      const existing = await query(`SELECT q.*, (SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS question_count FROM quizzes q WHERE q.id = $1`, [id]);
+      if (!existing.rows[0]) return res.status(404).json({ error: 'Quiz not found.' });
+      return res.json(existing.rows[0]);
+    }
+
+    params.push(id);
+    const result = await query(
+      `UPDATE quizzes SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Quiz not found.' });
+    res.json(result.rows[0]);
   } catch (err) {
     next(err);
   }
@@ -204,6 +281,66 @@ async function getUserDetails(req, res, next) {
       quizHistory: quizHistRes.rows,
       withdrawHistory: withdrawRes.rows,
       couponHistory: couponRes.rows,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---- Quiz attempt Q&A review (per-attempt drill-down) -------------------
+// Lets an admin see exactly what a student answered, question-by-question,
+// alongside the correct answer — not just the aggregate score. Used from
+// the Users tab's Quiz History table and could equally be linked from a
+// contest's participant list.
+async function getAttemptDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const attemptRes = await query(
+      `SELECT qa.id, qa.started_at, qa.submitted_at, qa.auto_submitted, qa.score,
+              qz.title AS quiz_title, qz.passing_marks, qz.negative_marking,
+              c.name AS contest_name, c.id AS contest_id,
+              u.id AS user_id, u.username, p.full_name,
+              cp.rank, cp.points_awarded, cp.correct_count, cp.wrong_count
+       FROM quiz_attempts qa
+       JOIN quizzes qz ON qz.id = qa.quiz_id
+       JOIN contests c ON c.id = qa.contest_id
+       JOIN users u ON u.id = qa.user_id
+       JOIN profiles p ON p.user_id = u.id
+       LEFT JOIN contest_participants cp ON cp.contest_id = qa.contest_id AND cp.user_id = qa.user_id
+       WHERE qa.id = $1`,
+      [id]
+    );
+    if (!attemptRes.rows[0]) return res.status(404).json({ error: 'Attempt not found.' });
+    const attempt = attemptRes.rows[0];
+
+    const answersRes = await query(
+      `SELECT q.id AS question_id, q.question_text, q.options, q.correct_options,
+              q.marks, q.negative_marks, q.explanation, q.order_index,
+              ans.selected_options, ans.is_correct, ans.marks_obtained
+       FROM questions q
+       LEFT JOIN quiz_answers ans ON ans.question_id = q.id AND ans.attempt_id = $1
+       WHERE q.quiz_id = (SELECT quiz_id FROM quiz_attempts WHERE id = $1)
+       ORDER BY q.order_index ASC`,
+      [id]
+    );
+
+    // Proctoring session for this attempt, if any — surfaced alongside the
+    // answers so an admin reviewing a low/flagged score has the full picture
+    // in one place instead of hopping to the separate AI Proctoring tab.
+    const sessionRes = await query(
+      `SELECT status, risk_score, final_status, final_reason, low_count, medium_count, high_count, critical_count
+       FROM proctoring_sessions WHERE attempt_id = $1`,
+      [id]
+    );
+
+    res.json({
+      attempt,
+      answers: answersRes.rows.map((a) => ({
+        ...a,
+        answered: (a.selected_options || []).length > 0,
+      })),
+      proctoring: sessionRes.rows[0] || null,
     });
   } catch (err) {
     next(err);
@@ -374,18 +511,32 @@ async function updateCoupon(req, res, next) {
   try {
     const { id } = req.params;
     const { code, points, rewardAmount, maxRedemptions, expiresAt, isActive } = req.body;
+
+    // Build SET clause to avoid COALESCE(null, TINYINT_col) MySQL bug
+    const sets = [
+      `code            = COALESCE($1, code)`,
+      `points          = COALESCE($2, points)`,
+      `reward_amount   = COALESCE($3, reward_amount)`,
+      `max_redemptions = COALESCE($4, max_redemptions)`,
+      `expires_at      = COALESCE($5, expires_at)`,
+    ];
+    const params = [
+      code ? code.toUpperCase().trim() : null,
+      points ?? null,
+      rewardAmount ?? null,
+      maxRedemptions !== undefined ? maxRedemptions : null,
+      expiresAt !== undefined ? expiresAt : null,
+    ];
+
+    if (isActive !== undefined) {
+      params.push(isActive ? 1 : 0);
+      sets.push(`is_active = $${params.length}`);
+    }
+
+    params.push(id);
     const result = await query(
-      `UPDATE coupons SET
-        code            = COALESCE($1, code),
-        points          = COALESCE($2, points),
-        reward_amount   = COALESCE($3, reward_amount),
-        max_redemptions = COALESCE($4, max_redemptions),
-        expires_at      = COALESCE($5, expires_at),
-        is_active       = COALESCE($6, is_active)
-       WHERE id = $7 RETURNING *`,
-      [code ? code.toUpperCase().trim() : null, points, rewardAmount,
-       maxRedemptions !== undefined ? maxRedemptions : null,
-       expiresAt !== undefined ? expiresAt : null, isActive, id]
+      `UPDATE coupons SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Coupon not found.' });
     res.json(result.rows[0]);
@@ -394,6 +545,7 @@ async function updateCoupon(req, res, next) {
     next(err);
   }
 }
+
 
 async function deleteCoupon(req, res, next) {
   try {
@@ -430,11 +582,13 @@ async function listWithdrawals(req, res, next) {
   try {
     const { status = '', limit = 100, offset = 0, search = '' } = req.query;
     const result = await query(
-      `SELECT wh.id, wh.amount, wh.method, wh.status, wh.transaction_id, wh.created_at,
-              u.username, u.email, p.full_name
+      `SELECT wh.id, wh.amount, wh.method, wh.payout_snapshot, wh.status, wh.transaction_id, wh.created_at,
+              u.username, u.email, p.full_name,
+              pd.upi_id, pd.account_holder, pd.account_number, pd.ifsc_code, pd.bank_name, pd.preferred_method AS live_preferred_method
        FROM withdrawal_history wh
        JOIN users u ON u.id = wh.user_id
        JOIN profiles p ON p.user_id = wh.user_id
+       LEFT JOIN payout_details pd ON pd.user_id = wh.user_id
        WHERE ($1 = '' OR wh.status ILIKE $1)
          AND (u.username ILIKE $2 OR u.email ILIKE $2 OR p.full_name ILIKE $2)
        ORDER BY wh.created_at DESC LIMIT $3 OFFSET $4`,
@@ -445,6 +599,7 @@ async function listWithdrawals(req, res, next) {
     next(err);
   }
 }
+
 
 async function updateWithdrawalStatus(req, res, next) {
   try {
@@ -479,9 +634,106 @@ async function updateWithdrawalStatus(req, res, next) {
           [withdrawal.amount, withdrawal.user_id]
         );
       }
+
+      // Tell the user what happened — previously this update was silent on
+      // the user's side, so "Completed" in the admin panel never actually
+      // reached them.
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message)
+         VALUES ($1, 'withdrawal_update', $2, $3)`,
+        status === 'Completed'
+          ? [
+              withdrawal.user_id,
+              '💸 Payment sent!',
+              `Your ₹${parseFloat(withdrawal.amount).toFixed(2)} withdrawal has been paid out${transactionId ? ` (Txn ID: ${transactionId})` : ''}. You should receive it shortly.`,
+            ]
+          : [
+              withdrawal.user_id,
+              'Withdrawal could not be completed',
+              `Your ₹${parseFloat(withdrawal.amount).toFixed(2)} withdrawal request failed and the amount has been refunded to your wallet. Please check your payout details and try again.`,
+            ]
+      );
+
       await logAction(client, req.user.id, 'update_withdrawal', 'withdrawal', id, { status, transactionId });
     });
     res.json({ message: `Withdrawal marked as ${status}.` });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---- Contest Scheduling (admin) --------------------------------------
+async function listAllContests(req, res, next) {
+  try {
+    const { search = '', limit = 100, offset = 0 } = req.query;
+    const result = await query(
+      `SELECT c.id, c.name, c.status, c.starts_at, c.ends_at,
+              c.current_participants, c.max_participants, c.sequence_number,
+              c.entry_points_cost, c.created_at, c.locked_at,
+              q.title AS quiz_title, q.duration_minutes,
+              ct.name AS template_name
+       FROM contests c
+       LEFT JOIN quizzes q ON q.id = c.quiz_id
+       LEFT JOIN contest_templates ct ON ct.id = c.template_id
+       WHERE (c.name ILIKE $1 OR q.title ILIKE $1)
+       ORDER BY c.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [`%${search}%`, limit, offset]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function scheduleContest(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { startsAt, endsAt, status } = req.body;
+
+    const VALID_STATUSES = ['upcoming', 'live', 'locked', 'completed', 'cancelled'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+    }
+
+    const sets = [];
+    const params = [];
+
+    if (startsAt !== undefined) {
+      params.push(startsAt || null);
+      sets.push(`starts_at = $${params.length}`);
+    }
+    if (endsAt !== undefined) {
+      params.push(endsAt || null);
+      sets.push(`ends_at = $${params.length}`);
+    }
+    if (status !== undefined) {
+      params.push(status);
+      sets.push(`status = $${params.length}`);
+      // Mimic contestEngine: set locked_at when going live
+      if (status === 'live' || status === 'locked') {
+        sets.push(`locked_at = COALESCE(locked_at, now())`);
+      }
+    }
+
+    if (sets.length === 0) {
+      const existing = await query(`SELECT * FROM contests WHERE id = $1`, [id]);
+      if (!existing.rows[0]) return res.status(404).json({ error: 'Contest not found.' });
+      return res.json(existing.rows[0]);
+    }
+
+    params.push(id);
+    const result = await query(
+      `UPDATE contests SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Contest not found.' });
+
+    await withTransaction(async (client) => {
+      await logAction(client, req.user.id, 'schedule_contest', 'contest', id, { startsAt, endsAt, status });
+    });
+
+    res.json({ message: 'Contest schedule updated.', contest: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -583,10 +835,11 @@ async function bulkCreditPoints(req, res, next) {
 
 module.exports = {
   createTemplate, listTemplates, updateTemplate,
-  createQuiz, listQuizzes,
-  listUsers, getUserDetails, updateUserAccess, deleteUser,
+  createQuiz, listQuizzes, updateQuiz,
+  listUsers, getUserDetails, getAttemptDetail, updateUserAccess, deleteUser,
   setUserStatus, adjustPoints, adjustUserWallet, bulkCreditPoints,
   listCoupons, createCoupon, updateCoupon, deleteCoupon, listCouponRedemptions,
   listWithdrawals, updateWithdrawalStatus,
   createAnnouncement, getDashboardStats, getAdminLogs,
+  listAllContests, scheduleContest,
 };

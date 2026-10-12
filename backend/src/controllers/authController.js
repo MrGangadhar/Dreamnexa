@@ -13,6 +13,10 @@ const { getDemoProfile, shouldUseMockData } = require('../utils/mockData');
 const SIGNUP_BONUS_POINTS = 50;
 const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '100', 10);
 
+function thirtyDaysFromNow() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 async function loadAuthUser(userId) {
   const result = await query(
     `SELECT u.id, u.username, u.email, u.role, u.status,
@@ -97,8 +101,8 @@ async function register(req, res, next) {
     const refreshToken = signRefreshToken(authUser);
     await query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-       VALUES ($1, $2, now() + interval '30 days')`,
-      [result.id, hashToken(refreshToken)]
+       VALUES ($1, $2, $3)`,
+      [result.id, hashToken(refreshToken), thirtyDaysFromNow()]
     );
 
     res.status(201).json({
@@ -183,8 +187,8 @@ async function login(req, res, next) {
       const refreshToken = signRefreshToken(authUser);
       await query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-         VALUES ($1, $2, now() + interval '30 days')`,
-        [user.id, hashToken(refreshToken)]
+         VALUES ($1, $2, $3)`,
+        [user.id, hashToken(refreshToken), thirtyDaysFromNow()]
       );
 
       return res.json({
@@ -256,4 +260,36 @@ async function logout(req, res, next) {
   }
 }
 
-module.exports = { register, login, refresh, logout };
+async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required.' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const userRes = await query(
+      `SELECT id, password_hash FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    const user = userRes.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect.' });
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await query(
+      `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
+      [newHash, req.user.id]
+    );
+
+    res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, refresh, logout, changePassword };

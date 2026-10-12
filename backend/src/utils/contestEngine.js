@@ -145,11 +145,12 @@ async function lockAndRegenerate(client, contest) {
     if (quizRes.rows[0]) durationMinutes = quizRes.rows[0].duration_minutes;
   }
 
+  const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
   const locked = await client.query(
     `UPDATE contests
-     SET status = 'live', locked_at = now(), ends_at = now() + ($2 || ' minutes')::interval
+     SET status = 'live', locked_at = now(), ends_at = $2
      WHERE id = $1 RETURNING *`,
-    [contest.id, durationMinutes]
+    [contest.id, endsAt]
   );
 
   const lockedContest = locked.rows[0];

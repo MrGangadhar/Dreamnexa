@@ -15,8 +15,12 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(form.usernameOrEmail, form.password);
-      navigate('/dashboard');
+      const loggedUser = await login(form.usernameOrEmail, form.password);
+      if (loggedUser?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Check your credentials.');
     } finally {
@@ -64,8 +68,9 @@ export default function Login() {
         <div className="card" style={{ padding: 32, background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Username or Email</label>
+              <label htmlFor="login-usernameOrEmail">Username or Email</label>
               <input
+                id="login-usernameOrEmail"
                 value={form.usernameOrEmail}
                 onChange={e => setForm({ ...form, usernameOrEmail: e.target.value })}
                 placeholder="your_username or email@example.com"
@@ -74,9 +79,10 @@ export default function Login() {
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Password</label>
+              <label htmlFor="login-password">Password</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="login-password"
                   type={showPass ? 'text' : 'password'}
                   value={form.password}
                   onChange={e => setForm({ ...form, password: e.target.value })}
@@ -87,6 +93,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
                   style={{
                     position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer',
@@ -110,23 +117,7 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Demo credentials hint */}
-          <div style={{
-            marginTop: 20,
-            padding: '12px 16px',
-            background: 'var(--accent-yellow-soft)',
-            border: '1px solid rgba(255,215,0,0.2)',
-            borderRadius: 10,
-            fontSize: 12,
-          }}>
-            <div style={{ fontWeight: 700, color: 'var(--accent-yellow)', marginBottom: 4, fontFamily: 'var(--font-display)' }}>
-              🎯 Demo Credentials
-            </div>
-            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--text-primary)' }}>Admin:</strong> admin / Admin@12345<br />
-              <strong style={{ color: 'var(--text-primary)' }}>Student:</strong> john_doe / Pass@12345
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

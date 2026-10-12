@@ -38,6 +38,7 @@ import NewsDetailModal      from '../components/news/NewsDetailModal';
 import ErrorState           from '../components/news/ErrorState';
 
 import '../styles/news.css';
+import AdBanner from '../components/AdBanner';
 
 // ── Default filter state ───────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
@@ -162,7 +163,7 @@ export default function News({ defaultCategory = 'all' }) {
 
   /* ── Carousel articles (featured or first 5 with images) ─────────────*/
   const carouselArticles = articles
-    .filter((a) => a.urlToImage)
+    .filter((a) => a.urlToImage || (a.articleType === 'vlog' && a.vlogUrl))
     .sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0))
     .slice(0, 5);
 
@@ -244,6 +245,11 @@ export default function News({ defaultCategory = 'all' }) {
             />
           )}
 
+          {/* ── Top Ad Banner ─────────────────────────────────────────────── */}
+          {!activeSearch && !query.isLoading && (
+            <AdBanner position="top" variant={0} />
+          )}
+
           {/* ── Stats bar ────────────────────────────────────────────────── */}
           {!query.isLoading && !error && articles.length > 0 && (
             <div className="news-stats-bar">
@@ -287,18 +293,23 @@ export default function News({ defaultCategory = 'all' }) {
                 ))
               }
 
-              {/* Article cards */}
+              {/* Article cards — with inline ads every 6 articles */}
               <AnimatePresence>
                 {articles.map((article, index) => (
-                  <NewsCard
-                    key={article.id || article.url || index}
-                    article={article}
-                    isBookmarked={bookmarkUrlSet.has(article.url || article.id)}
-                    category={filters.category !== 'all' ? filters.category : article.category}
-                    onBookmark={() => handleToggleBookmark(article)}
-                    onShare={() => setShareArticle(article)}
-                    onClick={() => setDetailArticle({ ...article, _category: filters.category })}
-                  />
+                  <React.Fragment key={article.id || article.url || index}>
+                    <NewsCard
+                      article={article}
+                      isBookmarked={bookmarkUrlSet.has(article.url || article.id)}
+                      category={filters.category !== 'all' ? filters.category : article.category}
+                      onBookmark={() => handleToggleBookmark(article)}
+                      onShare={() => setShareArticle(article)}
+                      onClick={() => setDetailArticle({ ...article, _category: filters.category })}
+                    />
+                    {/* Insert ad after every 6th article */}
+                    {(index + 1) % 6 === 0 && (
+                      <AdBanner position="inline" variant={Math.floor((index + 1) / 6) - 1} />
+                    )}
+                  </React.Fragment>
                 ))}
               </AnimatePresence>
             </div>

@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 import { formatDistanceToNow } from '../../utils/dateUtils';
-import { getCategoryEmoji } from '../../utils/newsUtils';
+import { getCategoryEmoji, getYouTubeThumbnail, resolveImageUrl } from '../../utils/newsUtils';
 
 const SLIDE_INTERVAL = 5000; // ms
 
@@ -52,6 +52,7 @@ export default function BreakingNewsCarousel({ articles = [], onCardClick }) {
     >
       {articles.map((article, i) => {
         const emoji = getCategoryEmoji(article._category || article.category);
+        const imageUrl = resolveImageUrl(article.urlToImage) || (article.articleType === 'vlog' ? getYouTubeThumbnail(article.vlogUrl) : null);
         return (
           <div
             key={article.url || i}
@@ -60,10 +61,10 @@ export default function BreakingNewsCarousel({ articles = [], onCardClick }) {
             style={{ cursor: 'pointer' }}
           >
             {/* Background image */}
-            {article.urlToImage ? (
+            {imageUrl ? (
               <img
                 className="carousel-img"
-                src={article.urlToImage}
+                src={imageUrl}
                 alt={article.title}
                 loading={i === 0 ? 'eager' : 'lazy'}
                 onError={(e) => { e.target.style.display = 'none'; }}

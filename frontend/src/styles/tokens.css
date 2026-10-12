@@ -32,16 +32,30 @@
   --accent-green:    #198754;  /* live / success / active */
   --accent-green-soft: rgba(25, 135, 84, 0.1);
 
+  --accent-red:      #C8102E;  /* errors, danger actions, unread markers */
+  --accent-red-soft: rgba(200, 16, 46, 0.1);
+
+  /* Brand gradient — used for the logo mark on auth screens */
+  --grad-accent:   linear-gradient(135deg, #FFD766 0%, #F5A623 100%);
+  --shadow-accent: 0 8px 20px rgba(245, 166, 35, 0.35);
+
   /* ── Borders & Lines ──────────────────────────────── */
   --border:       #DEE2E6;   /* standard subtle border */
   --border-light: #E9ECEF;   /* very faint border */
   --border-dark:  #CED4DA;   /* slightly stronger border for inputs */
   --border-accent: rgba(200, 16, 46, 0.4);
+  --line:         #DEE2E6;   /* alias of --border, used by seat grid */
 
   /* ── Shadows ──────────────────────────────────────── */
   --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-card:  0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* ── Seat Grid (contest join grid) ─────────────────── */
+  --ink-soft:     #6C757D;   /* muted helper text, alias of --text-secondary */
+  --seat-ink:     #212529;   /* filled-seat marker */
+  --seat-empty:   #F1F3F5;   /* open-seat marker */
+  --rubric-red:   #C8102E;   /* "you" marker / inline error text */
 
   /* ── Typography ───────────────────────────────────── */
   /* Using standard system fonts for a real web app feel, mimicking Inter/Roboto */

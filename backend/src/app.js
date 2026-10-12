@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -11,7 +12,12 @@ const quizRoutes = require('./routes/quizRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const newsRoutes = require('./routes/newsRoutes');
+const govtJobsRoutes  = require('./routes/govtJobsRoutes');
 const walletRoutes = require('./routes/walletRoutes');
+const proctoringRoutes = require('./routes/proctoringRoutes');
+const uploadRoutes    = require('./routes/uploadRoutes');
+const backupRoutes    = require('./routes/backupRoutes');
+const currentAffairsRoutes = require('./routes/currentAffairsRoutes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -25,7 +31,9 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : [])
 ].filter(Boolean);
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
@@ -36,7 +44,12 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
@@ -46,12 +59,26 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'dreamnex
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/contact', (req, res, next) => {
+  // Shorthand: POST /api/contact → userController.submitContactForm
+  if (req.method === 'POST') {
+    return require('./controllers/userController').submitContactForm(req, res, next);
+  }
+  res.status(405).json({ error: 'Method not allowed' });
+});
 app.use('/api/contests', contestRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/jobs',      govtJobsRoutes);
+app.use('/jobs',          govtJobsRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/proctoring', proctoringRoutes);
+app.use('/api/upload',    uploadRoutes);
+app.use('/api/admin/backup', backupRoutes);
+app.use('/api/current-affairs', currentAffairsRoutes);
+
 
 app.use(notFound);
 app.use(errorHandler);

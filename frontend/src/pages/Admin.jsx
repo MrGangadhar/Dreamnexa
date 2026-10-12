@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import client from '../api/client';
 import toast from 'react-hot-toast';
+import { resolveImageUrl, getYouTubeThumbnail } from '../utils/newsUtils';
+import GovtJobsManager from '../components/admin/GovtJobsManager';
+import CurrentAffairsManager from '../components/admin/CurrentAffairsManager';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DESIGN TOKENS
@@ -39,14 +42,18 @@ const SIDEBAR_W = 232;
    NAVIGATION CONFIG
    ─────────────────────────────────────────────────────────────────────────── */
 const NAV = [
-  { key: 'overview',   label: 'Overview',     icon: GridIcon   },
-  { key: 'users',      label: 'Users',        icon: UsersIcon  },
-  { key: 'coupons',    label: 'Coupons',      icon: TagIcon    },
-  { key: 'payments',   label: 'Payments',     icon: CashIcon   },
-  { key: 'templates',  label: 'Contests',     icon: TrophyIcon },
-  { key: 'quizzes',    label: 'Quizzes',      icon: QuizIcon   },
-  { key: 'news',       label: 'News & Vlogs', icon: NewsIcon   },
-  { key: 'logs',       label: 'Audit Log',    icon: LogIcon    },
+  { key: 'overview',   label: 'Overview',          icon: GridIcon   },
+  { key: 'users',      label: 'Users',              icon: UsersIcon  },
+  { key: 'coupons',    label: 'Coupons',            icon: TagIcon    },
+  { key: 'payments',   label: 'Payments',           icon: CashIcon   },
+  { key: 'templates',  label: 'Contests',           icon: TrophyIcon },
+  { key: 'schedule',   label: 'Contest Schedule',   icon: CalendarIcon },
+  { key: 'quizzes',    label: 'Quizzes',            icon: QuizIcon   },
+  { key: 'proctoring', label: 'AI Proctoring',      icon: ShieldIcon },
+  { key: 'govt_jobs',        label: 'Govt Jobs',          icon: BriefcaseIcon },
+  { key: 'current_affairs',  label: 'Current Affairs',    icon: BookOpenIcon },
+  { key: 'news',             label: 'News & Vlogs',       icon: NewsIcon   },
+  { key: 'logs',             label: 'Audit Log',          icon: LogIcon    },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -65,8 +72,12 @@ function TagIcon(p)    { return <Icon {...p} d="M20.59 13.41l-7.17 7.17a2 2 0 0 
 function CashIcon(p)   { return <Icon {...p} d={['M12 2v20','M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6']} />; }
 function TrophyIcon(p) { return <Icon {...p} d={['M6 9H3l2 8h14l2-8h-3','M9 3h6v6a3 3 0 1 1-6 0V3z','M12 15v4','M8 19h8']} />; }
 function QuizIcon(p)   { return <Icon {...p} d={['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z','M14 2v6h6','M16 13H8','M16 17H8','M10 9H8']} />; }
+function ShieldIcon(p) { return <Icon {...p} d={['M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z','M9 12l2 2 4-4']} />; }
+function BriefcaseIcon(p) { return <Icon {...p} d={['M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2','M2 6h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z','M12 12v3','M9 12h6']} />; }
+function BookOpenIcon(p)  { return <Icon {...p} d={['M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z','M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z']} />; }
 function NewsIcon(p)   { return <Icon {...p} d={['M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2zm0 0H4','M16 12H8','M16 8H8','M16 16H8']} />; }
 function LogIcon(p)    { return <Icon {...p} d={['M9 12h6','M9 16h6','M9 8h6','M5 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2']} />; }
+function CalendarIcon(p){ return <Icon {...p} d={['M8 2v4','M16 2v4','M3 8h18','M21 6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6z','M8 12h2','M12 12h2','M16 12h2','M8 16h2','M12 16h2']} />; }
 function ChevronIcon(p){ return <Icon {...p} size={14} d="M9 18l6-6-6-6" />; }
 function AlertIcon(p)  { return <Icon {...p} fill="#d97706" stroke="none" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" />; }
 
@@ -91,12 +102,12 @@ function Badge({ label, color }) {
   );
 }
 
-function Card({ children, style, pad = 20 }) {
+function Card({ children, style, pad = 20, ...rest }) {
   return (
     <div style={{
       background:C.card, border:`1px solid ${C.border}`,
       borderRadius:12, padding:pad, boxShadow:'0 1px 3px rgba(0,0,0,0.06)', ...style,
-    }}>{children}</div>
+    }} {...rest}>{children}</div>
   );
 }
 
@@ -203,7 +214,14 @@ function Sparkline({ data=[], color='#7c3aed', height=48, width=180 }) {
    ─────────────────────────────────────────────────────────────────────────── */
 export default function Admin() {
   const [tab, setTab] = useState('overview');
-  const [sideOpen, setSideOpen] = useState(true);
+  const [sideOpen, setSideOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true);
+
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth <= 900) setSideOpen(false); };
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   return (
     <div style={{display:'flex',minHeight:'100vh',background:C.bg,fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
@@ -277,7 +295,7 @@ export default function Admin() {
         {/* Top bar */}
         <header style={{
           background:C.card, borderBottom:`1px solid ${C.border}`,
-          padding:'0 28px', height:60, display:'flex', alignItems:'center',
+          padding:'0 16px', height:60, display:'flex', alignItems:'center',
           gap:16, position:'sticky', top:0, zIndex:50, flexShrink:0,
           boxShadow:'0 1px 3px rgba(0,0,0,0.05)',
         }}>
@@ -291,14 +309,18 @@ export default function Admin() {
         </header>
 
         {/* Page body */}
-        <main style={{flex:1,padding:'24px 28px',minWidth:0}}>
-          {tab==='overview'  && <Overview  />}
+        <main style={{flex:1,padding:'20px 16px',minWidth:0,overflowX:'hidden'}}>
+          {tab==='overview'  && <Overview onNavigate={setTab} />}
           {tab==='users'     && <UsersTab  />}
           {tab==='coupons'   && <CouponsTab/>}
           {tab==='payments'  && <PaymentsTab/>}
           {tab==='templates' && <Templates />}
+          {tab==='schedule'  && <ContestScheduleTab />}
           {tab==='quizzes'   && <Quizzes   />}
-          {tab==='news'      && <NewsManager/>}
+          {tab==='proctoring' && <ProctoringTab />}
+          {tab==='govt_jobs'       && <GovtJobsManager />}
+          {tab==='current_affairs' && <CurrentAffairsManager />}
+          {tab==='news'            && <NewsManager/>}
           {tab==='logs'      && <AuditLog  />}
         </main>
       </div>
@@ -309,7 +331,7 @@ export default function Admin() {
 /* ─────────────────────────────────────────────────────────────────────────────
    OVERVIEW
    ─────────────────────────────────────────────────────────────────────────── */
-function Overview() {
+function Overview({ onNavigate }) {
   const [stats, setStats]     = useState(null);
   const [bulk, setBulk]       = useState({ amount:'', reason:'' });
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -339,10 +361,10 @@ function Overview() {
   const sparkData = [12,18,14,22,28,19,35,31,40,38,45,52];
 
   const statCards = [
-    { label:'Total Students',    value:fmtNum(totalStudents),    icon:'🎓', color:C.purple, spark:sparkData },
-    { label:'Published Quizzes', value:fmtNum(publishedQuizzes), icon:'📝', color:C.blue,   spark:[5,7,6,8,7,9,8,11,10,12,14,13] },
-    { label:'Active Contests',   value:fmtNum(activeTemplates),  icon:'🏆', color:C.green,  spark:[2,3,2,4,3,5,4,6,5,7,6,8] },
-    { label:'Active Coupons',    value:fmtNum(activeCoupons||0), icon:'🎫', color:C.amber,  spark:[0,1,0,2,1,3,2,4,3,5,4,6] },
+    { label:'Total Students',    value:fmtNum(totalStudents),    icon:'🎓', color:C.purple, spark:sparkData, nav:'users' },
+    { label:'Published Quizzes', value:fmtNum(publishedQuizzes), icon:'📝', color:C.blue,   spark:[5,7,6,8,7,9,8,11,10,12,14,13], nav:'quizzes' },
+    { label:'Active Contests',   value:fmtNum(activeTemplates),  icon:'🏆', color:C.green,  spark:[2,3,2,4,3,5,4,6,5,7,6,8], nav:'templates' },
+    { label:'Active Coupons',    value:fmtNum(activeCoupons||0), icon:'🎫', color:C.amber,  spark:[0,1,0,2,1,3,2,4,3,5,4,6], nav:'coupons' },
   ];
 
   return (
@@ -350,7 +372,7 @@ function Overview() {
 
       {/* Pending alert */}
       {parseInt(pendingWithdrawals?.count||0)>0 && (
-        <div style={{background:'#fffbeb',border:'1px solid #fde68a',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:12}}>
+        <div onClick={()=>onNavigate?.('payments')} style={{background:'#fffbeb',border:'1px solid #fde68a',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}>
           <AlertIcon size={20}/>
           <div style={{flex:1}}>
             <span style={{fontWeight:700,color:'#92400e',fontSize:13}}>{pendingWithdrawals.count} Pending Withdrawal Request{pendingWithdrawals.count>1?'s':''}</span>
@@ -360,10 +382,12 @@ function Overview() {
         </div>
       )}
 
-      {/* Stat cards */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+      {/* Stat cards — click any card to jump straight to its detail tab with live data */}
+      <div className="grid-4">
         {statCards.map(s=>(
-          <Card key={s.label} style={{position:'relative',overflow:'hidden',cursor:'default'}}>
+          <Card key={s.label} onClick={()=>onNavigate?.(s.nav)} style={{position:'relative',overflow:'hidden',cursor:'pointer',transition:'transform .12s, box-shadow .12s'}}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)';}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>{s.label}</div>
@@ -380,11 +404,11 @@ function Overview() {
       </div>
 
       {/* Middle row */}
-      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:16}}>
+      <div className="admin-mid">
 
         {/* Contest Status + Top Colleges */}
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          <Card>
+          <Card onClick={()=>onNavigate?.('templates')} style={{cursor:'pointer'}}>
             <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
               <TrophyIcon size={16} stroke={C.purple}/> Contest Status Breakdown
             </div>
@@ -408,7 +432,7 @@ function Overview() {
             </div>
           </Card>
 
-          <Card>
+          <Card onClick={()=>onNavigate?.('users')} style={{cursor:'pointer'}}>
             <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
               <UsersIcon size={16} stroke={C.blue}/> Top Colleges
             </div>
@@ -450,14 +474,14 @@ function Overview() {
 
           <Card>
             <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:14}}>📊 Quick Stats</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               {[
-                ['Total Students',fmtNum(totalStudents),'#7c3aed'],
-                ['Published Quizzes',fmtNum(publishedQuizzes),'#2563eb'],
-                ['Active Templates',fmtNum(activeTemplates),'#16a34a'],
-                ['Active Coupons',fmtNum(activeCoupons||0),'#d97706'],
-              ].map(([lbl,val,clr])=>(
-                <div key={lbl} style={{background:'#f8fafc',borderRadius:10,padding:'12px 14px',borderLeft:`3px solid ${clr}`}}>
+                ['Total Students',fmtNum(totalStudents),'#7c3aed','users'],
+                ['Published Quizzes',fmtNum(publishedQuizzes),'#2563eb','quizzes'],
+                ['Active Templates',fmtNum(activeTemplates),'#16a34a','templates'],
+                ['Active Coupons',fmtNum(activeCoupons||0),'#d97706','coupons'],
+              ].map(([lbl,val,clr,nav])=>(
+                <div key={lbl} onClick={()=>onNavigate?.(nav)} style={{cursor:'pointer',background:'#f8fafc',borderRadius:10,padding:'12px 14px',borderLeft:`3px solid ${clr}`}}>
                   <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{lbl}</div>
                   <div style={{fontSize:20,fontWeight:800,fontFamily:'monospace',color:C.primary}}>{val}</div>
                 </div>
@@ -486,6 +510,22 @@ function UsersTab() {
   const [walletForm,setWalletForm] = useState({});
   const [ptForm,setPtForm] = useState({amount:'',reason:''});
   const [saving,setSaving]   = useState(false);
+  const [attemptModal,setAttemptModal] = useState(null); // attempt detail being viewed
+  const [attemptLoading,setAttemptLoading] = useState(false);
+
+  const openAttempt = async row => {
+    setAttemptLoading(true);
+    setAttemptModal({ loading:true });
+    try {
+      const {data} = await client.get(`/admin/attempts/${row.id}`);
+      setAttemptModal(data);
+    } catch {
+      toast.error('Failed to load attempt details.');
+      setAttemptModal(null);
+    } finally {
+      setAttemptLoading(false);
+    }
+  };
 
   const load = useCallback(()=>{
     setLoading(true);
@@ -556,7 +596,7 @@ function UsersTab() {
   const filteredUsers = users.filter(u=>!roleFilter||u.role===roleFilter);
 
   return (
-    <div style={{display:'grid',gridTemplateColumns:selected?'340px 1fr':'1fr',gap:18,alignItems:'flex-start'}}>
+    <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:selected?'340px 1fr':'1fr',gap:18,alignItems:'flex-start'}}>
       {/* User list */}
       <div>
         <Card pad={0}>
@@ -627,12 +667,12 @@ function UsersTab() {
               {detailTab==='info'&&(
                 editMode?(
                   <form onSubmit={saveEdit} style={{display:'flex',flexDirection:'column',gap:14}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                    <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       {[['username','Username'],['email','Email'],['mobile','Mobile'],['fullName','Full Name'],['college','College'],['university','University'],['state','State'],['city','City']].map(([k,l])=>(
                         <div key={k}><label style={LBL}>{l}</label><input style={INP} value={editForm[k]} onChange={e=>setEditForm({...editForm,[k]:e.target.value})} /></div>
                       ))}
                     </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                    <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
                       <div><label style={LBL}>Role</label><select style={INP} value={editForm.role} onChange={e=>setEditForm({...editForm,role:e.target.value})}><option value="student">Student</option><option value="admin">Admin</option></select></div>
                       <div><label style={LBL}>Status</label><select style={INP} value={editForm.status} onChange={e=>setEditForm({...editForm,status:e.target.value})}><option value="active">Active</option><option value="suspended">Suspended</option><option value="deleted">Deleted</option></select></div>
                       <div><label style={LBL}>New Password</label><input type="password" style={INP} placeholder="Leave blank to keep" value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} /></div>
@@ -643,7 +683,7 @@ function UsersTab() {
                   </form>
                 ):(
                   <div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+                    <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
                       {[['Username','@'+details.user.username],['Email',details.user.email],['Mobile',details.user.mobile||'—'],['Role',details.user.role],['Status',details.user.status],['College',details.user.college||'—'],['Joined',fmtDate(details.user.created_at)],['Referral Code',details.user.referral_code||'—'],['Total Points',fmtNum(details.user.total_points)],['Contests',details.user.total_contests||0],['Quizzes Played',details.user.total_quizzes_played||0],['Contests Won',details.user.contests_won||0]].map(([k,v])=>(
                         <div key={k} style={{background:'#f8fafc',borderRadius:8,padding:'10px 12px'}}>
                           <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:3}}>{k}</div>
@@ -664,7 +704,7 @@ function UsersTab() {
               {detailTab==='wallet'&&(
                 <div style={{display:'flex',flexDirection:'column',gap:14}}>
                   {details.wallet&&(
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+                    <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
                       {[['Current Points',fmtNum(details.wallet.current_points),'#7c3aed'],['Available Prize','₹'+parseFloat(details.wallet.available_prize||0).toFixed(2),'#16a34a'],['Lifetime Prize','₹'+parseFloat(details.wallet.lifetime_prize||0).toFixed(2),'#2563eb']].map(([l,v,c])=>(
                         <div key={l} style={{background:'#f8fafc',borderRadius:10,padding:'14px 16px',textAlign:'center',borderTop:`3px solid ${c}`}}>
                           <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>{l}</div>
@@ -676,7 +716,7 @@ function UsersTab() {
                   <div style={{background:'#f8fafc',borderRadius:10,padding:16}}>
                     <div style={{fontWeight:700,fontSize:12,color:C.secondary,marginBottom:12}}>🎯 Adjust Prize Balance</div>
                     <form onSubmit={saveWallet} style={{display:'flex',flexDirection:'column',gap:10}}>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                      <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                         <div><label style={LBL}>Available (₹)</label><input type="number" step="0.01" style={INP} value={walletForm.availablePrize} onChange={e=>setWalletForm({...walletForm,availablePrize:e.target.value})}/></div>
                         <div><label style={LBL}>Lifetime (₹)</label><input type="number" step="0.01" style={INP} value={walletForm.lifetimePrize} onChange={e=>setWalletForm({...walletForm,lifetimePrize:e.target.value})}/></div>
                       </div>
@@ -698,14 +738,17 @@ function UsersTab() {
               {/* QUIZ HISTORY */}
               {detailTab==='quiz'&&(
                 details.quizHistory?.length===0?<EmptyTable msg="No quiz attempts yet."/>:
-                <DataTable cols={[
-                  {key:'quiz_title',label:'Quiz',render:r=><span style={{fontWeight:600,fontSize:12}}>{r.quiz_title}</span>},
-                  {key:'contest_name',label:'Contest',render:r=><span style={{fontSize:12,color:C.muted}}>{r.contest_name}</span>},
-                  {key:'score',label:'Score',render:r=><span style={{fontFamily:'monospace',fontWeight:700}}>{r.score??'—'}</span>},
-                  {key:'rank',label:'Rank',render:r=><span style={{fontWeight:700,color:C.purple}}>#{r.rank??'—'}</span>},
-                  {key:'points_awarded',label:'Points',render:r=><span style={{fontWeight:700,color:C.green}}>+{r.points_awarded||0}</span>},
-                  {key:'started_at',label:'Date',render:r=><span style={{fontSize:11,color:C.muted}}>{fmtDate(r.started_at)}</span>},
-                ]} rows={details.quizHistory}/>
+                <>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:8}}>Click any attempt to see the full question-by-question answer review.</div>
+                  <DataTable onRow={openAttempt} cols={[
+                    {key:'quiz_title',label:'Quiz',render:r=><span style={{fontWeight:600,fontSize:12}}>{r.quiz_title}</span>},
+                    {key:'contest_name',label:'Contest',render:r=><span style={{fontSize:12,color:C.muted}}>{r.contest_name}</span>},
+                    {key:'score',label:'Score',render:r=><span style={{fontFamily:'monospace',fontWeight:700}}>{r.score??'—'}</span>},
+                    {key:'rank',label:'Rank',render:r=><span style={{fontWeight:700,color:C.purple}}>#{r.rank??'—'}</span>},
+                    {key:'points_awarded',label:'Points',render:r=><span style={{fontWeight:700,color:C.green}}>+{r.points_awarded||0}</span>},
+                    {key:'started_at',label:'Date',render:r=><span style={{fontSize:11,color:C.muted}}>{fmtDate(r.started_at)}</span>},
+                  ]} rows={details.quizHistory}/>
+                </>
               )}
 
               {/* WITHDRAW */}
@@ -733,6 +776,63 @@ function UsersTab() {
             </>}
           </div>
         </Card>
+      )}
+
+      {/* Attempt Q&A review modal */}
+      {attemptModal&&(
+        <Modal title="📝 Attempt Review" onClose={()=>setAttemptModal(null)} wide>
+          {attemptLoading||!attemptModal.attempt?<Spinner/>:(
+            <div>
+              <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+                {[
+                  ['Quiz',attemptModal.attempt.quiz_title],
+                  ['Contest',attemptModal.attempt.contest_name],
+                  ['Score',attemptModal.attempt.score],
+                  ['Rank',attemptModal.attempt.rank?`#${attemptModal.attempt.rank}`:'—'],
+                ].map(([l,v])=>(
+                  <div key={l} style={{background:'#f8fafc',borderRadius:8,padding:'10px 12px'}}>
+                    <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:3}}>{l}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:C.primary}}>{v??'—'}</div>
+                  </div>
+                ))}
+              </div>
+
+              {attemptModal.proctoring&&(
+                <div style={{marginBottom:18,padding:'12px 14px',borderRadius:8,background:BAND_COLOR[attemptModal.proctoring.final_status]?`${BAND_COLOR[attemptModal.proctoring.final_status]}12`:'#f8fafc',border:`1px solid ${C.border}`}}>
+                  <div style={{fontWeight:700,fontSize:12,marginBottom:4}}>🛡️ Proctoring — {attemptModal.proctoring.final_status||attemptModal.proctoring.status} (risk {attemptModal.proctoring.risk_score}/100)</div>
+                  {attemptModal.proctoring.final_reason&&<div style={{fontSize:12,color:C.secondary}}>{attemptModal.proctoring.final_reason}</div>}
+                </div>
+              )}
+
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {attemptModal.answers.map((a,i)=>(
+                  <div key={a.question_id} style={{border:`1px solid ${a.is_correct?'#bbf7d0':a.answered?'#fecaca':C.border}`,borderRadius:10,padding:14,background:a.is_correct?'#f0fdf4':a.answered?'#fef2f2':'#f8fafc'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',gap:10,marginBottom:8}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.primary}}>Q{i+1}. {a.question_text}</div>
+                      <Badge label={a.is_correct?'Correct':a.answered?'Wrong':'Skipped'} color={a.is_correct?C.green:a.answered?C.red:C.muted}/>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      {(a.options||[]).map(opt=>{
+                        const isCorrectOpt=(a.correct_options||[]).includes(opt.id);
+                        const isSelected=(a.selected_options||[]).includes(opt.id);
+                        return (
+                          <div key={opt.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:12,padding:'4px 8px',borderRadius:6,
+                            background:isCorrectOpt?'rgba(34,197,94,0.12)':isSelected?'rgba(220,38,38,0.1)':'transparent',
+                            color:isCorrectOpt?C.green:isSelected?C.red:C.secondary,fontWeight:isCorrectOpt||isSelected?700:500}}>
+                            <span>{isCorrectOpt?'✓':isSelected?'✕':'○'}</span>
+                            <span>{opt.text}</span>
+                            {isSelected&&<span style={{marginLeft:'auto',fontSize:10,color:C.muted}}>student's answer</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{marginTop:8,fontSize:11,color:C.muted}}>Marks obtained: <b style={{color:a.marks_obtained>=0?C.green:C.red}}>{a.marks_obtained}</b></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );
@@ -807,12 +907,12 @@ function CouponsTab() {
             <Card style={{marginBottom:18,border:`1px solid rgba(124,58,237,0.25)`,background:'rgba(124,58,237,0.02)'}}>
               <div style={{fontWeight:700,fontSize:14,marginBottom:14}}>{editId?'✏️ Edit Coupon':'➕ Create Coupon'}</div>
               <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:12}}>
-                <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:12}}>
+                <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:12}}>
                   <div><label style={LBL}>Code *</label><input style={{...INP,textTransform:'uppercase',letterSpacing:'0.08em',fontWeight:700}} value={form.code} onChange={e=>setForm({...form,code:e.target.value.toUpperCase()})} placeholder="WELCOME100" required/></div>
                   <div><label style={LBL}>Points</label><input type="number" min={0} style={INP} value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></div>
                   <div><label style={LBL}>Prize (₹)</label><input type="number" min={0} step="0.01" style={INP} value={form.rewardAmount} onChange={e=>setForm({...form,rewardAmount:e.target.value})}/></div>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
                   <div><label style={LBL}>Max Uses (blank=∞)</label><input type="number" min={1} style={INP} value={form.maxRedemptions} onChange={e=>setForm({...form,maxRedemptions:e.target.value})} placeholder="Unlimited"/></div>
                   <div><label style={LBL}>Expires At</label><input type="datetime-local" style={INP} value={form.expiresAt} onChange={e=>setForm({...form,expiresAt:e.target.value})}/></div>
                   <div style={{display:'flex',flexDirection:'column'}}>
@@ -884,6 +984,69 @@ function CouponsTab() {
 /* ─────────────────────────────────────────────────────────────────────────────
    PAYMENTS TAB
    ─────────────────────────────────────────────────────────────────────────── */
+function renderPayoutInfo(r) {
+  let snap = r.payout_snapshot;
+  if (typeof snap === 'string') {
+    try { snap = JSON.parse(snap); } catch {}
+  }
+  
+  const method = snap?.preferred_method || r.live_preferred_method || r.method;
+  const upi = snap?.upi_id || r.upi_id;
+  const accHolder = snap?.account_holder || r.account_holder;
+  const accNum = snap?.account_number || r.account_number;
+  const ifsc = snap?.ifsc_code || r.ifsc_code;
+  const bank = snap?.bank_name || r.bank_name;
+
+  if (method === 'Bank' || (!upi && accNum)) {
+    if (!accNum) return <span style={{fontSize:11,color:C.red}}>No Bank details set</span>;
+    return (
+      <div style={{fontSize:12}}>
+        <div style={{fontWeight:700,color:C.primary,display:'flex',alignItems:'center',gap:4}}>
+          🏦 {accNum}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(accNum); toast.success('Account number copied!'); }}
+            style={{border:'none',background:'transparent',cursor:'pointer',padding:2,fontSize:12}}
+            title="Copy Account Number"
+          >
+            📋
+          </button>
+        </div>
+        <div style={{fontSize:11,color:C.secondary}}>
+          IFSC: <b>{ifsc}</b>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ifsc); toast.success('IFSC code copied!'); }}
+            style={{border:'none',background:'transparent',cursor:'pointer',padding:'0 2px',fontSize:10}}
+            title="Copy IFSC"
+          >
+            📋
+          </button>
+        </div>
+        {accHolder && <div style={{fontSize:10,color:C.muted}}>Holder: {accHolder}</div>}
+        {bank && <div style={{fontSize:10,color:C.muted}}>Bank: {bank}</div>}
+      </div>
+    );
+  } else {
+    if (!upi) return <span style={{fontSize:11,color:C.red}}>No UPI ID set</span>;
+    return (
+      <div style={{fontSize:12}}>
+        <div style={{fontWeight:700,color:C.purple,display:'flex',alignItems:'center',gap:4}}>
+          📱 {upi}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(upi); toast.success('UPI ID copied!'); }}
+            style={{border:'none',background:'transparent',cursor:'pointer',padding:2,fontSize:12}}
+            title="Copy UPI ID"
+          >
+            📋
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 function PaymentsTab() {
   const [withdrawals,setWithdrawals] = useState([]);
   const [statusFilter,setStatusFilter] = useState('');
@@ -919,7 +1082,7 @@ function PaymentsTab() {
   return (
     <div>
       {/* Summary cards */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:20}}>
+      <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:20}}>
         {[
           ['Pending',pending.length,'₹'+pending.reduce((s,w)=>s+parseFloat(w.amount),0).toFixed(2),C.amber],
           ['Completed',completed.length,'₹'+completed.reduce((s,w)=>s+parseFloat(w.amount),0).toFixed(2),C.green],
@@ -951,16 +1114,17 @@ function PaymentsTab() {
               {key:'full_name',label:'Student',render:r=><div><div style={{fontWeight:700,fontSize:13}}>{r.full_name}</div><div style={{fontSize:11,color:C.muted}}>@{r.username}</div></div>},
               {key:'amount',label:'Amount',render:r=><span style={{fontWeight:800,fontFamily:'monospace',fontSize:15}}>₹{parseFloat(r.amount).toFixed(2)}</span>},
               {key:'method',label:'Method',render:r=><Badge label={r.method} color={C.cyan}/>},
+              {key:'payout_details',label:'Payout Account / UPI',render:renderPayoutInfo},
               {key:'status',label:'Status',render:r=><Badge label={r.status} color={STATUS_CLR[r.status]||C.muted}/>},
               {key:'transaction_id',label:'Txn ID',render:r=><span style={{fontFamily:'monospace',fontSize:11,color:C.muted}}>{r.transaction_id||'—'}</span>},
               {key:'created_at',label:'Requested',render:r=><span style={{fontSize:11,color:C.muted}}>{fmtTime(r.created_at)}</span>},
               {key:'action',label:'Action',render:r=>r.status==='Processing'?(
                 <div style={{display:'flex',gap:6}}>
-                  <button onClick={e=>{e.stopPropagation();setActionModal({id:r.id,status:'Completed',amount:r.amount,user:r.full_name});setTxId('');}}
+                  <button onClick={e=>{e.stopPropagation();setActionModal({id:r.id,status:'Completed',amount:r.amount,user:r.full_name,record:r});setTxId('');}}
                     style={{padding:'4px 10px',borderRadius:6,border:`1px solid #bbf7d0`,background:'#f0fdf4',cursor:'pointer',fontSize:11,fontWeight:700,color:C.green}}>
                     ✅ Complete
                   </button>
-                  <button onClick={e=>{e.stopPropagation();setActionModal({id:r.id,status:'Failed',amount:r.amount,user:r.full_name});setTxId('');}}
+                  <button onClick={e=>{e.stopPropagation();setActionModal({id:r.id,status:'Failed',amount:r.amount,user:r.full_name,record:r});setTxId('');}}
                     style={{padding:'4px 10px',borderRadius:6,border:`1px solid #fecaca`,background:'#fef2f2',cursor:'pointer',fontSize:11,fontWeight:700,color:C.red}}>
                     ❌ Fail
                   </button>
@@ -974,15 +1138,23 @@ function PaymentsTab() {
 
       {actionModal&&(
         <Modal title={actionModal.status==='Completed'?'✅ Confirm Payment':'❌ Reject Withdrawal'} onClose={()=>setActionModal(null)}>
-          <p style={{fontSize:13,color:C.secondary,marginBottom:16}}>
+          <p style={{fontSize:13,color:C.secondary,marginBottom:12}}>
             {actionModal.status==='Completed'
               ?`Mark ₹${parseFloat(actionModal.amount).toFixed(2)} withdrawal for "${actionModal.user}" as completed?`
               :`Reject and refund ₹${parseFloat(actionModal.amount).toFixed(2)} to "${actionModal.user}"'s wallet?`}
           </p>
+
+          {actionModal.status==='Completed' && actionModal.record && (
+            <div style={{background:'#f8fafc',padding:12,borderRadius:8,border:`1px solid ${C.border}`,marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.primary,marginBottom:4}}>Destination Payout Account:</div>
+              {renderPayoutInfo(actionModal.record)}
+            </div>
+          )}
+
           {actionModal.status==='Completed'&&(
             <div style={{marginBottom:16}}>
-              <label style={LBL}>Transaction ID (optional)</label>
-              <input style={INP} placeholder="e.g. UTR123456" value={txId} onChange={e=>setTxId(e.target.value)}/>
+              <label style={LBL}>Transaction ID / UTR (optional)</label>
+              <input style={INP} placeholder="e.g. UTR123456789" value={txId} onChange={e=>setTxId(e.target.value)}/>
             </div>
           )}
           <div style={{display:'flex',gap:10}}>
@@ -998,6 +1170,7 @@ function PaymentsTab() {
   );
 }
 
+
 /* ─────────────────────────────────────────────────────────────────────────────
    AUDIT LOG
    ─────────────────────────────────────────────────────────────────────────── */
@@ -1008,6 +1181,200 @@ const ACTION_COLOR = {
   create_coupon:C.green, delete_coupon:C.red, update_coupon:C.blue,
 };
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   AI PROCTORING — flagged session review
+   ─────────────────────────────────────────────────────────────────────────── */
+const BAND_COLOR = {
+  NORMAL: C.green,
+  WARNING: C.amber,
+  REVIEW_REQUIRED: C.amber,
+  REJECTION_CANDIDATE: C.red,
+};
+
+function ProctoringTab() {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [flaggedOnly, setFlaggedOnly] = useState(true);
+  const [selected, setSelected] = useState(null); // session id
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [deciding, setDeciding] = useState(false);
+  const [live, setLive] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    client.get('/admin/proctoring/sessions', { params: flaggedOnly ? { flagged: 1 } : {} })
+      .then(({ data }) => setSessions(data))
+      .catch(() => toast.error('Failed to load proctoring sessions.'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [flaggedOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Best-effort live nudge: when any admin dashboard is subscribed and a new
+  // event lands for a WARNING-or-worse session, quietly re-pull the list.
+  useEffect(() => {
+    let socket;
+    let debounce;
+    import('../api/socket').then(({ getSocket }) => {
+      socket = getSocket();
+      socket.connect();
+      socket.on('connect', () => setLive(true));
+      socket.on('disconnect', () => setLive(false));
+      socket.on('proctoring:event', (evt) => {
+        if (evt.band && evt.band !== 'NORMAL') {
+          clearTimeout(debounce);
+          debounce = setTimeout(load, 800); // small debounce so a burst of events doesn't spam refetches
+        }
+      });
+    });
+    return () => {
+      clearTimeout(debounce);
+      if (socket) {
+        socket.off('proctoring:event');
+        socket.off('connect');
+        socket.off('disconnect');
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openDetail = (id) => {
+    setSelected(id);
+    setDetailLoading(true);
+    client.get(`/admin/proctoring/sessions/${id}`)
+      .then(({ data }) => setDetail(data))
+      .catch(() => toast.error('Failed to load session detail.'))
+      .finally(() => setDetailLoading(false));
+  };
+
+  const decide = (decision) => {
+    if (!selected) return;
+    setDeciding(true);
+    client.post(`/admin/proctoring/sessions/${selected}/decision`, { decision })
+      .then(() => {
+        toast.success(decision === 'confirmed' ? 'Session confirmed as a violation.' : 'Flag dismissed.');
+        setSelected(null);
+        setDetail(null);
+        load();
+      })
+      .catch(() => toast.error('Failed to record decision.'))
+      .finally(() => setDeciding(false));
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: C.primary }}>AI Quiz Proctor — Session Review</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.secondary, fontWeight: 600 }}>
+            <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
+            Flagged / in-review only
+          </label>
+          <button onClick={load} style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.secondary }}>🔄 Refresh</button>
+        </div>
+      </div>
+
+      <Card pad={0}>
+        {loading ? <Spinner /> : sessions.length === 0 ? (
+          <EmptyTable msg={flaggedOnly ? 'No flagged proctoring sessions right now — nice and quiet.' : 'No proctoring sessions recorded yet.'} />
+        ) : (
+          <div style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+            {sessions.map((s, i) => {
+              const clr = BAND_COLOR[s.band] || C.muted;
+              return (
+                <div key={s.id} onClick={() => openDetail(s.id)}
+                  style={{ display: 'flex', gap: 14, padding: '12px 18px', borderBottom: i < sessions.length - 1 ? `1px solid ${C.border}` : 'none', alignItems: 'center', cursor: 'pointer', transition: 'background .12s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: clr, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: C.primary }}>{s.fullName || s.username}</span>
+                      <span style={{ fontSize: 11, color: C.muted }}>@{s.username}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: clr, background: clr + '15', padding: '2px 8px', borderRadius: 4 }}>{s.band}</span>
+                      {s.finalStatus && <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>· {s.finalStatus}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                      {s.contestName} · Risk {s.riskScore}/100 · {s.totalEvents} events
+                      <span style={{ margin: '0 6px' }}>·</span>
+                      {fmtTime(s.startedAt)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: clr }}>{Math.round(s.riskScore)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {selected && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
+          onClick={() => { setSelected(null); setDetail(null); }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto', background: '#fff', borderRadius: 14, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            {detailLoading || !detail ? <Spinner /> : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: C.primary }}>{detail.session.fullName}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>@{detail.session.username} · {detail.session.contestName}</div>
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: BAND_COLOR[detail.session.band] || C.muted }}>
+                    {Math.round(detail.session.riskScore)}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {Object.entries(detail.session.violationCounts).map(([sev, count]) => count > 0 && (
+                    <span key={sev} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#f1f5f9', color: C.secondary }}>
+                      {count} {sev}
+                    </span>
+                  ))}
+                </div>
+
+                {detail.session.finalReason && (
+                  <div style={{ fontSize: 12, color: C.secondary, background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, marginBottom: 14, lineHeight: 1.5 }}>
+                    {detail.session.finalReason}
+                  </div>
+                )}
+
+                <div style={{ fontWeight: 700, fontSize: 12, color: C.primary, marginBottom: 8 }}>Event Timeline ({detail.events.length})</div>
+                <div style={{ maxHeight: 220, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 16 }}>
+                  {detail.events.map((ev, i) => (
+                    <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: i < detail.events.length - 1 ? `1px solid ${C.border}` : 'none', fontSize: 12 }}>
+                      <span style={{ color: C.primary, fontWeight: 600 }}>{ev.event_type.replace(/_/g, ' ')}</span>
+                      <span style={{ color: C.muted }}>{ev.severity} · {fmtTime(ev.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {detail.session.reviewerDecision ? (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: detail.session.reviewerDecision === 'confirmed' ? C.red : C.green }}>
+                    Already reviewed: {detail.session.reviewerDecision} on {fmtTime(detail.session.reviewedAt)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button disabled={deciding} onClick={() => decide('dismissed')}
+                      style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: C.secondary }}>
+                      Dismiss Flag
+                    </button>
+                    <button disabled={deciding} onClick={() => decide('confirmed')}
+                      style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: 'none', background: C.red, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#fff' }}>
+                      Confirm Violation
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   AUDIT LOG
+   ─────────────────────────────────────────────────────────────────────────── */
 function AuditLog() {
   const [logs,setLogs]   = useState([]);
   const [loading,setLoading] = useState(false);
@@ -1064,6 +1431,8 @@ function Templates() {
   const [templates,setTemplates] = useState([]);
   const [quizzes,setQuizzes]   = useState([]);
   const [form,setForm] = useState({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0});
+  const [dualEntry,setDualEntry] = useState(true);
+  const [paidEntryCost,setPaidEntryCost] = useState(20);
   const [creating,setCreating] = useState(false);
 
   const load=()=>{
@@ -1072,11 +1441,23 @@ function Templates() {
   };
   useEffect(load,[]);
 
+  const rewardStructure=[{rank:1,badge:'gold_scholar',points:200},{rank:2,badge:'silver_scholar',points:120},{rank:3,badge:'bronze_scholar',points:60}];
+
   const createTemplate=async e=>{
     e.preventDefault(); setCreating(true);
     try {
-      await client.post('/admin/templates',{...form,maxParticipants:Number(form.maxParticipants),entryPointsCost:Number(form.entryPointsCost),rewardStructure:[{rank:1,badge:'gold_scholar',points:200},{rank:2,badge:'silver_scholar',points:120},{rank:3,badge:'bronze_scholar',points:60}]});
-      toast.success('Template created!');
+      const base={...form,maxParticipants:Number(form.maxParticipants),rewardStructure};
+      if (dualEntry) {
+        // Spin up two twin contests off the same quiz — a Free entry (0 pts)
+        // and a Paid/points entry — so the full join → play → leaderboard
+        // workflow can be exercised both ways without touching the DB by hand.
+        await client.post('/admin/templates',{...base,name:`${form.name} (Free Entry)`,entryPointsCost:0});
+        await client.post('/admin/templates',{...base,name:`${form.name} (Paid Entry)`,entryPointsCost:Number(paidEntryCost)});
+        toast.success('Free + Paid entry contests created!');
+      } else {
+        await client.post('/admin/templates',{...base,entryPointsCost:Number(form.entryPointsCost)});
+        toast.success('Template created!');
+      }
       setForm({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0}); load();
     } catch(err){ toast.error(err.response?.data?.error||'Failed.'); }
     finally{ setCreating(false); }
@@ -1085,7 +1466,7 @@ function Templates() {
   const toggleField=async(id,field,value)=>{ await client.patch(`/admin/templates/${id}`,{[field]:value}); load(); };
 
   return (
-    <div style={{display:'grid',gridTemplateColumns:'360px 1fr',gap:18,alignItems:'flex-start'}}>
+    <div className="admin-split-360">
       <Card>
         <div style={{fontWeight:700,fontSize:15,marginBottom:16,color:C.primary}}>New Contest Template</div>
         <form onSubmit={createTemplate} style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -1094,21 +1475,36 @@ function Templates() {
           <div><label style={LBL}>Quiz *</label>
             <select style={INP} value={form.quizId} onChange={e=>setForm({...form,quizId:e.target.value})} required>
               <option value="">Select a quiz…</option>
-              {quizzes.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}
+              {quizzes.map(q=><option key={q.id} value={q.id}>{q.title} {q.proctoring_enabled ? '(🛡 AI Proctored)' : ''}</option>)}
             </select>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div><label style={LBL}>Max Participants</label><input type="number" min={2} style={INP} value={form.maxParticipants} onChange={e=>setForm({...form,maxParticipants:e.target.value})} required/></div>
+          <div><label style={LBL}>Max Participants</label><input type="number" min={2} style={INP} value={form.maxParticipants} onChange={e=>setForm({...form,maxParticipants:e.target.value})} required/></div>
+
+          <label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:C.secondary,background:'#f8fafc',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px'}}>
+            <input type="checkbox" checked={dualEntry} onChange={e=>setDualEntry(e.target.checked)}/>
+            Create both a Free entry and a Paid (points) entry contest for this quiz
+          </label>
+
+          {dualEntry ? (
+            <div><label style={LBL}>Paid Entry Cost (pts)</label><input type="number" min={1} style={INP} value={paidEntryCost} onChange={e=>setPaidEntryCost(e.target.value)}/></div>
+          ) : (
             <div><label style={LBL}>Entry Cost (pts)</label><input type="number" min={0} style={INP} value={form.entryPointsCost} onChange={e=>setForm({...form,entryPointsCost:e.target.value})}/></div>
-          </div>
-          <button disabled={creating} type="submit" style={{padding:'9px 18px',borderRadius:8,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#7c3aed,#2563eb)',color:'#fff',fontWeight:700,fontSize:13}}>{creating?'Creating…':'Create Template'}</button>
+          )}
+
+          <button disabled={creating} type="submit" style={{padding:'9px 18px',borderRadius:8,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#7c3aed,#2563eb)',color:'#fff',fontWeight:700,fontSize:13}}>
+            {creating?'Creating…':dualEntry?'Create Free + Paid Contests':'Create Template'}
+          </button>
         </form>
       </Card>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {templates.map(t=>(
-          <Card key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:16}}>
+          <Card key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:16,gap:12,flexWrap:'wrap'}}>
             <div>
-              <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:3}}>{t.name}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
+                <div style={{fontWeight:700,fontSize:14,color:C.primary}}>{t.name}</div>
+                <Badge label={Number(t.entry_points_cost)>0?`${t.entry_points_cost} pts entry`:'Free entry'} color={Number(t.entry_points_cost)>0?C.blue:C.green}/>
+                {t.proctoring_enabled ? <Badge label="🛡 AI Proctored" color={C.green}/> : null}
+              </div>
               <div style={{fontSize:12,color:C.muted}}>{t.quiz_title} · {t.max_participants} seats · {t.contests_spawned} contests</div>
             </div>
             <div style={{display:'flex',gap:8}}>
@@ -1131,12 +1527,27 @@ function Templates() {
    ─────────────────────────────────────────────────────────────────────────── */
 function Quizzes() {
   const [quizzes,setQuizzes] = useState([]);
-  const [form,setForm] = useState({title:'',description:'',durationMinutes:10,negativeMarking:0.25,questions:[]});
+  const [form,setForm] = useState({title:'',description:'',durationMinutes:10,negativeMarking:0.25,proctoringEnabled:true,questions:[]});
   const [q,setQ] = useState({questionText:'',options:['','','',''],correctIndex:0});
   const [creating,setCreating] = useState(false);
+  const [togglingId,setTogglingId] = useState(null);
+  const [loading,setLoading] = useState(false);
+  const [loadError,setLoadError] = useState(null);
 
-  const load=()=>client.get('/admin/quizzes').then(({data})=>setQuizzes(data));
-  useEffect(load,[]);
+  const load=useCallback(()=>{
+    setLoading(true); setLoadError(null);
+    return client.get('/admin/quizzes')
+      .then(({data})=>setQuizzes(data))
+      .catch(err=>{
+        // Previously an unhandled rejection here just left the tab looking
+        // blank/stuck with no feedback — surface the real error instead.
+        const msg = err.response?.data?.error || err.message || 'Failed to load quizzes.';
+        setLoadError(msg);
+        toast.error(msg);
+      })
+      .finally(()=>setLoading(false));
+  },[]);
+  useEffect(()=>{ load(); },[load]);
 
   const addQ=()=>{
     if(!q.questionText||q.options.some(o=>!o)){ toast.error('Fill question and all 4 options.'); return; }
@@ -1148,22 +1559,42 @@ function Quizzes() {
   const createQuiz=async e=>{
     e.preventDefault(); if(!form.questions.length){ toast.error('Add at least one question.'); return; }
     setCreating(true);
-    try { await client.post('/admin/quizzes',form); toast.success('Quiz published!'); setForm({title:'',description:'',durationMinutes:10,negativeMarking:0.25,questions:[]}); load(); }
+    try { await client.post('/admin/quizzes',form); toast.success('Quiz published!'); setForm({title:'',description:'',durationMinutes:10,negativeMarking:0.25,proctoringEnabled:true,questions:[]}); load(); }
     catch(err){ toast.error(err.response?.data?.error||'Failed.'); }
     finally{ setCreating(false); }
   };
 
+  const toggleProctoring=async(qz)=>{
+    setTogglingId(qz.id);
+    try {
+      const nextVal = !qz.proctoring_enabled;
+      const { data } = await client.patch(`/admin/quizzes/${qz.id}`, { proctoringEnabled: nextVal });
+      const updatedVal = data?.proctoring_enabled !== undefined ? !!data.proctoring_enabled : nextVal;
+      setQuizzes(prev=>prev.map(x=>x.id===qz.id ? { ...x, proctoring_enabled: updatedVal } : x));
+      toast.success(`AI Proctoring ${updatedVal ? 'enabled' : 'disabled'} for "${qz.title}"`);
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to update proctoring setting.';
+      toast.error(msg);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   return (
-    <div style={{display:'grid',gridTemplateColumns:'420px 1fr',gap:18,alignItems:'flex-start'}}>
+    <div className="admin-split-420">
       <Card>
         <div style={{fontWeight:700,fontSize:15,marginBottom:16,color:C.primary}}>Create New Quiz</div>
         <form onSubmit={createQuiz} style={{display:'flex',flexDirection:'column',gap:12}}>
           <div><label style={LBL}>Title *</label><input style={INP} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required/></div>
           <div><label style={LBL}>Description</label><input style={INP} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <div><label style={LBL}>Duration (min)</label><input type="number" style={INP} value={form.durationMinutes} onChange={e=>setForm({...form,durationMinutes:Number(e.target.value)})}/></div>
             <div><label style={LBL}>Negative Marking</label><input type="number" step="0.25" style={INP} value={form.negativeMarking} onChange={e=>setForm({...form,negativeMarking:Number(e.target.value)})}/></div>
           </div>
+          <label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:C.secondary}}>
+            <input type="checkbox" checked={form.proctoringEnabled} onChange={e=>setForm({...form,proctoringEnabled:e.target.checked})}/>
+            AI Proctoring (camera/mic system check, tab-switch & copy-paste detection)
+          </label>
           <div style={{background:'#f8fafc',border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
             <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>Add Question</div>
             <input style={{...INP,marginBottom:8}} placeholder="Question text" value={q.questionText} onChange={e=>setQ({...q,questionText:e.target.value})}/>
@@ -1183,9 +1614,32 @@ function Quizzes() {
         {quizzes.map(qz=>(
           <Card key={qz.id} style={{padding:16}}>
             <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:4}}>{qz.title}</div>
-            <div style={{display:'flex',gap:10}}>
+            <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
               <Badge label={`${qz.question_count} questions`} color={C.purple}/>
               <Badge label={`${qz.duration_minutes} min`} color={C.blue}/>
+              {qz.proctoring_enabled ? (
+                <Badge label="🛡 Proctored (AI)" color={C.green}/>
+              ) : (
+                <Badge label="Standard (No Proctor)" color={C.muted}/>
+              )}
+              <button disabled={togglingId===qz.id} onClick={()=>toggleProctoring(qz)}
+                style={{
+                  marginLeft:'auto',
+                  padding:'5px 12px',
+                  borderRadius:6,
+                  border:`1px solid ${qz.proctoring_enabled ? '#fecaca' : '#bbf7d0'}`,
+                  background: qz.proctoring_enabled ? '#fef2f2' : '#f0fdf4',
+                  cursor: togglingId===qz.id ? 'not-allowed' : 'pointer',
+                  fontSize:11,
+                  fontWeight:700,
+                  color: qz.proctoring_enabled ? C.red : C.green,
+                  display:'inline-flex',
+                  alignItems:'center',
+                  gap:4,
+                  transition:'all .15s'
+                }}>
+                {togglingId===qz.id ? 'Updating…' : qz.proctoring_enabled ? 'Disable Proctoring' : '🛡️ Enable Proctoring'}
+              </button>
             </div>
           </Card>
         ))}
@@ -1195,10 +1649,238 @@ function Quizzes() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   NEWS MANAGER  (original functionality preserved)
-   ─────────────────────────────────────────────────────────────────────────── */
+   NEWS MANAGER  (enhanced with rich-text editor + image uploader)
+   ─────────────────────────────────────────────────────────────── */
+
 const EMPTY_ART = {title:'',description:'',content:'',imageUrl:'',category:'general',articleType:'news',vlogUrl:'',authorName:'',isFeatured:false};
 
+/* ── Word HTML cleaner ─────────────────────────────────────────────────────── */
+function cleanWordHtml(html) {
+  return html
+    .replace(/<o:p[^>]*>[\s\S]*?<\/o:p>/gi,'')
+    .replace(/<w:[^>]+>[\s\S]*?<\/w:[^>]+>/gi,'')
+    .replace(/<m:[^>]+>[\s\S]*?<\/m:[^>]+>/gi,'')
+    .replace(/<!--\[if[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi,'')
+    .replace(/ class="Mso[^"]*"/gi,'')
+    .replace(/ style="[^"]*mso-[^"]*"/gi,'')
+    .replace(/<span\s*>/gi,'<span>')
+    .replace(/<\/?(xml|head|style|script|meta|link)[^>]*>/gi,'')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+/* ── RichTextEditor ────────────────────────────────────────────────────────── */
+const TB_BTN = { padding:'4px 9px', borderRadius:5, border:`1px solid #e2e8f0`, background:'#fff', cursor:'pointer', fontSize:12, fontWeight:600, color:'#475569', lineHeight:1.3 };
+
+function RichTextEditor({ value, onChange }) {
+  const edRef = useRef(null);
+  const isUpdating = useRef(false);
+
+  /* Sync external value → editor when form resets */
+  useEffect(() => {
+    if (!edRef.current) return;
+    if (edRef.current.innerHTML !== value) {
+      isUpdating.current = true;
+      edRef.current.innerHTML = value || '';
+      isUpdating.current = false;
+    }
+  }, [value]);
+
+  const exec = (cmd, val = null) => { document.execCommand(cmd, false, val); edRef.current?.focus(); };
+
+  const handlePaste = useCallback((e) => {
+    e.preventDefault();
+    const html = e.clipboardData.getData('text/html');
+    const text = e.clipboardData.getData('text/plain');
+    if (html) {
+      document.execCommand('insertHTML', false, cleanWordHtml(html));
+    } else {
+      document.execCommand('insertText', false, text);
+    }
+    if (edRef.current) onChange(edRef.current.innerHTML);
+  }, [onChange]);
+
+  const handleInput = useCallback(() => {
+    if (!isUpdating.current && edRef.current) onChange(edRef.current.innerHTML);
+  }, [onChange]);
+
+  const insertLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) exec('createLink', url);
+  };
+
+  return (
+    <div style={{border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden',background:'#fff'}}>
+      {/* Toolbar */}
+      <div style={{display:'flex',flexWrap:'wrap',gap:4,padding:'6px 8px',borderBottom:`1px solid ${C.border}`,background:'#f8fafc'}}>
+        {[
+          {label:'B',title:'Bold',cmd:'bold',style:{fontWeight:900}},
+          {label:'I',title:'Italic',cmd:'italic',style:{fontStyle:'italic'}},
+          {label:'U',title:'Underline',cmd:'underline',style:{textDecoration:'underline'}},
+          {label:'S',title:'Strikethrough',cmd:'strikeThrough',style:{textDecoration:'line-through'}},
+        ].map(b=>(
+          <button key={b.cmd} type="button" title={b.title} style={{...TB_BTN,...b.style}} onMouseDown={e=>{e.preventDefault();exec(b.cmd)}}>{b.label}</button>
+        ))}
+        <span style={{width:1,background:C.border,margin:'0 4px',alignSelf:'stretch'}}/>
+        {['H1','H2','H3'].map(h=>(
+          <button key={h} type="button" title={h} style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('formatBlock',h.toLowerCase())}}>{h}</button>
+        ))}
+        <button type="button" title="Paragraph" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('formatBlock','p')}}>¶</button>
+        <span style={{width:1,background:C.border,margin:'0 4px',alignSelf:'stretch'}}/>
+        <button type="button" title="Bullet list" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('insertUnorderedList')}}>• List</button>
+        <button type="button" title="Numbered list" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('insertOrderedList')}}>1. List</button>
+        <span style={{width:1,background:C.border,margin:'0 4px',alignSelf:'stretch'}}/>
+        <button type="button" title="Align left" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('justifyLeft')}}>⬅</button>
+        <button type="button" title="Align center" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('justifyCenter')}}>≡</button>
+        <button type="button" title="Align right" style={TB_BTN} onMouseDown={e=>{e.preventDefault();exec('justifyRight')}}>➡</button>
+        <span style={{width:1,background:C.border,margin:'0 4px',alignSelf:'stretch'}}/>
+        <button type="button" title="Insert link" style={TB_BTN} onMouseDown={e=>{e.preventDefault();insertLink()}}>🔗</button>
+        <button type="button" title="Remove formatting" style={{...TB_BTN,color:C.red}} onMouseDown={e=>{e.preventDefault();exec('removeFormat')}}>✕ Format</button>
+      </div>
+      {/* Editable area */}
+      <div
+        ref={edRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onPaste={handlePaste}
+        style={{
+          minHeight:180, padding:'12px 14px', outline:'none',
+          fontSize:14, lineHeight:1.7, color:C.primary,
+          overflowY:'auto', maxHeight:400,
+        }}
+        data-placeholder="Write content here, or paste from MS Word — formatting is preserved..."
+      />
+      <style>{`
+        [contenteditable]:empty:before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          pointer-events: none;
+        }
+        [contenteditable] h1 { font-size:1.6em; font-weight:800; margin:.6em 0 .3em; }
+        [contenteditable] h2 { font-size:1.3em; font-weight:700; margin:.6em 0 .3em; }
+        [contenteditable] h3 { font-size:1.1em; font-weight:700; margin:.5em 0 .25em; }
+        [contenteditable] ul, [contenteditable] ol { margin:.4em 0 .8em 1.5em; }
+        [contenteditable] li { margin-bottom:.2em; }
+        [contenteditable] blockquote { border-left:3px solid #7c3aed; padding:6px 12px; color:#475569; font-style:italic; margin:.8em 0; }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── ImageUploader ─────────────────────────────────────────────────────────── */
+function ImageUploader({ value, onChange }) {
+  const [tab, setTab] = useState('upload'); // 'upload' | 'url'
+  const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [value]);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setImgError(false);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const { data } = await client.post('/upload/image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onChange(data.url);
+      toast.success('Image uploaded!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Upload failed.');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const TAB_STYLE = (active) => ({
+    padding:'6px 14px', borderRadius:'6px 6px 0 0', border:'none', cursor:'pointer',
+    fontSize:12, fontWeight:700,
+    background: active ? '#fff' : '#f1f5f9',
+    color: active ? C.purple : C.secondary,
+    borderBottom: active ? '2px solid #7c3aed' : '2px solid transparent',
+  });
+
+  const previewSrc = resolveImageUrl(value);
+
+  return (
+    <div>
+      <label style={LBL}>Thumbnail Image</label>
+      {/* Tab switcher */}
+      <div style={{display:'flex',gap:2,marginBottom:0,borderBottom:`1px solid ${C.border}`}}>
+        <button type="button" style={TAB_STYLE(tab==='upload')} onClick={()=>setTab('upload')}>📁 Upload from Device</button>
+        <button type="button" style={TAB_STYLE(tab==='url')} onClick={()=>setTab('url')}>🔗 Paste URL</button>
+      </div>
+
+      <div style={{border:`1px solid ${C.border}`,borderTop:'none',borderRadius:'0 0 8px 8px',padding:12,background:'#f8fafc'}}>
+        {tab === 'upload' ? (
+          <div>
+            <div
+              style={{
+                border:'2px dashed #c7d2fe', borderRadius:8, padding:'20px 16px',
+                textAlign:'center', cursor:'pointer', background:uploading?'#ede9fe':'#fff',
+                transition:'all .2s',
+              }}
+              onClick={()=>fileRef.current?.click()}
+              onDragOver={e=>{e.preventDefault();}}
+              onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f){fileRef.current.files=e.dataTransfer.files;handleFile({target:{files:[f]}});}}}
+            >
+              {uploading
+                ? <><div style={{fontSize:24}}>⏳</div><div style={{fontSize:13,color:C.secondary,marginTop:8}}>Uploading…</div></>
+                : <><div style={{fontSize:28}}>🖼️</div><div style={{fontSize:13,color:C.secondary,marginTop:6}}>Click or drag & drop an image</div><div style={{fontSize:11,color:C.muted,marginTop:3}}>PNG, JPG, GIF, WebP — max 8 MB</div></>
+              }
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleFile} />
+          </div>
+        ) : (
+          <input
+            style={INP}
+            value={value}
+            onChange={e=>onChange(e.target.value)}
+            placeholder="https://example.com/image.jpg"
+          />
+        )}
+      </div>
+
+      {/* Preview */}
+      {value && (
+        <div style={{marginTop:10,position:'relative',display:'inline-block'}}>
+          {!imgError ? (
+            <img
+              key={previewSrc}
+              src={previewSrc}
+              alt="Preview"
+              style={{height:80,maxWidth:220,borderRadius:8,border:`1px solid ${C.border}`,objectFit:'cover',display:'block'}}
+              onError={()=>setImgError(true)}
+            />
+          ) : (
+            <div style={{height:60,padding:'0 14px',borderRadius:8,border:`1px dashed ${C.red}`,background:'#fff1f2',display:'flex',alignItems:'center',gap:8,color:C.red,fontSize:12}}>
+              <span>⚠️</span>
+              <span>Image preview failed to load</span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={()=>{onChange(''); setImgError(false);}}
+            style={{position:'absolute',top:-6,right:-6,width:20,height:20,borderRadius:'50%',border:'none',background:C.red,color:'#fff',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}
+            title="Remove image"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── NewsManager ───────────────────────────────────────────────────────────── */
 function NewsManager() {
   const [articles,setArticles] = useState([]);
   const [loading,setLoading]   = useState(true);
@@ -1238,24 +1920,43 @@ function NewsManager() {
       {showForm&&(
         <Card style={{marginBottom:20,border:`1px solid rgba(124,58,237,0.2)`}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:14}}>{editId?'✏️ Edit':'➕ New Article'}</div>
-          <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:12}}>
+          <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+
+            {/* Title */}
             <div><label style={LBL}>Title *</label><input style={INP} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required/></div>
-            <div><label style={LBL}>Description</label><textarea style={{...INP,minHeight:60,resize:'vertical'}} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
-            <div><label style={LBL}>Full Content</label><textarea style={{...INP,minHeight:100,resize:'vertical'}} value={form.content} onChange={e=>setForm({...form,content:e.target.value})}/></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+
+            {/* Description */}
+            <div><label style={LBL}>Short Description</label><textarea style={{...INP,minHeight:60,resize:'vertical'}} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
+
+            {/* Type + Category row */}
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
               <div><label style={LBL}>Type</label><select style={INP} value={form.articleType} onChange={e=>setForm({...form,articleType:e.target.value})}><option value="news">📰 News</option><option value="vlog">🎥 Vlog</option></select></div>
               <div><label style={LBL}>Category</label><select style={INP} value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{ARTICLE_CATEGORIES.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}</select></div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <div><label style={LBL}>Image URL</label><input style={INP} value={form.imageUrl} onChange={e=>setForm({...form,imageUrl:e.target.value})} placeholder="https://…"/></div>
-              <div><label style={LBL}>Vlog URL {form.articleType==='vlog'?'*':'(opt)'}</label><input style={INP} value={form.vlogUrl} onChange={e=>setForm({...form,vlogUrl:e.target.value})} placeholder="https://youtube.com/…"/></div>
+
+            {/* Image uploader */}
+            <ImageUploader value={form.imageUrl} onChange={url=>setForm({...form,imageUrl:url})} />
+
+            {/* Vlog URL */}
+            {form.articleType==='vlog'&&(
+              <div><label style={LBL}>Vlog URL *</label><input style={INP} value={form.vlogUrl} onChange={e=>setForm({...form,vlogUrl:e.target.value})} placeholder="https://youtube.com/…"/></div>
+            )}
+
+            {/* Rich-text content */}
+            <div>
+              <label style={{...LBL,marginBottom:6}}>Full Content <span style={{fontWeight:400,textTransform:'none',color:C.muted}}>(paste from MS Word — styles are preserved)</span></label>
+              <RichTextEditor value={form.content} onChange={html=>setForm(f=>({...f,content:html}))} />
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,alignItems:'flex-end'}}>
+
+            {/* Author + Featured */}
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,alignItems:'flex-end'}}>
               <div><label style={LBL}>Author Name</label><input style={INP} value={form.authorName} onChange={e=>setForm({...form,authorName:e.target.value})} placeholder="(optional)"/></div>
               <label style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',border:`1px solid ${C.border}`,borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,background:form.isFeatured?'#fffbeb':'#fff'}}>
                 <input type="checkbox" checked={form.isFeatured} onChange={e=>setForm({...form,isFeatured:e.target.checked})} style={{width:'auto',accentColor:'#f59e0b'}}/> ⭐ Featured
               </label>
             </div>
+
+            {/* Submit */}
             <div style={{display:'flex',gap:10}}>
               <button type="submit" disabled={saving} style={{padding:'9px 22px',borderRadius:8,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#7c3aed,#2563eb)',color:'#fff',fontWeight:700,fontSize:13}}>{saving?'Saving…':editId?'Update':'Publish'}</button>
               {editId&&<button type="button" onClick={reset} style={{padding:'9px 16px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:13,color:C.secondary}}>Cancel</button>}
@@ -1268,9 +1969,27 @@ function NewsManager() {
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {articles.map(a=>(
             <Card key={a.id} style={{display:'flex',gap:14,padding:14,opacity:a.is_published?1:.6,borderLeft:`3px solid ${a.is_featured?'#f59e0b':C.border}`}}>
-              <div style={{width:64,height:64,borderRadius:8,flexShrink:0,background:a.image_url?`url(${a.image_url}) center/cover no-repeat`:'#f1f5f9',border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>
-                {!a.image_url&&(a.article_type==='vlog'?'🎥':'📰')}
-              </div>
+              {(() => {
+                const thumb = resolveImageUrl(a.image_url) || (a.article_type === 'vlog' ? getYouTubeThumbnail(a.vlog_url) : null);
+                return (
+                  <div style={{width:64,height:64,borderRadius:8,flexShrink:0,overflow:'hidden',background:'#f1f5f9',border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,position:'relative'}}>
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt={a.title}
+                        style={{width:'100%',height:'100%',objectFit:'cover'}}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div style={{display: thumb ? 'none' : 'flex', alignItems:'center', justifyContent:'center', width:'100%', height:'100%'}}>
+                      {a.article_type === 'vlog' ? '🎥' : '📰'}
+                    </div>
+                  </div>
+                );
+              })()}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:14,marginBottom:4,color:C.primary,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                   {a.is_featured&&<span style={{color:'#f59e0b',marginRight:6}}>⭐</span>}{a.title}
@@ -1294,3 +2013,290 @@ function NewsManager() {
     </div>
   );
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONTEST SCHEDULE TAB — Admin can set start/end time and status per contest
+   ─────────────────────────────────────────────────────────────────────────── */
+function ContestScheduleTab() {
+  const [contests, setContests] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [modal, setModal]       = useState(null); // { contest }
+  const [form, setForm]         = useState({ startsAt: '', endsAt: '', status: '' });
+  const [saving, setSaving]     = useState(false);
+
+  const STATUS_OPTS = ['upcoming', 'live', 'locked', 'completed', 'cancelled'];
+  const STATUS_COLOR = {
+    upcoming:  '#2563eb', live: '#16a34a', locked: '#d97706',
+    completed: '#6b7280', cancelled: '#dc2626',
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await client.get('/admin/contests', { params: { search, limit: 100 } });
+      setContests(data);
+    } catch {
+      toast.error('Failed to load contests.');
+    } finally {
+      setLoading(false);
+    }
+  }, [search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openModal = (c) => {
+    // Pre-fill form with existing values, converting UTC ISO → local datetime-local value
+    const toLocalInput = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    setForm({ startsAt: toLocalInput(c.starts_at), endsAt: toLocalInput(c.ends_at), status: c.status });
+    setModal(c);
+  };
+
+  const save = async () => {
+    if (!modal) return;
+    setSaving(true);
+    try {
+      // Convert local datetime-local → UTC ISO strings for the API
+      const toISO = (local) => local ? new Date(local).toISOString() : undefined;
+      await client.patch(`/admin/contests/${modal.id}/schedule`, {
+        startsAt: form.startsAt ? toISO(form.startsAt) : null,
+        endsAt:   form.endsAt   ? toISO(form.endsAt)   : null,
+        status:   form.status   || undefined,
+      });
+      toast.success(`Schedule updated for "${modal.name}"`);
+      setModal(null);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update schedule.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = contests.filter(c =>
+    !search || c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.quiz_title?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: C.primary }}>Contest Schedule</div>
+          <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>
+            Set start/end date & time for any contest, and change its status.
+          </div>
+        </div>
+        <button
+          onClick={load}
+          style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.secondary }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* Search */}
+      <Card pad={14}>
+        <input
+          placeholder="Search by contest name or quiz title…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ ...INP, maxWidth: 400 }}
+        />
+      </Card>
+
+      {/* Info banner */}
+      <div style={{
+        background: 'linear-gradient(90deg, rgba(37,99,235,0.06), rgba(124,58,237,0.06))',
+        border: `1px solid rgba(37,99,235,0.15)`,
+        borderRadius: 12, padding: '12px 16px', fontSize: 13, color: C.secondary,
+        display: 'flex', gap: 10, alignItems: 'flex-start',
+      }}>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+        <div>
+          <strong>How scheduling works:</strong> Setting a <em>Start Time</em> prevents users from accessing the quiz before that time.
+          Setting an <em>End Time</em> locks quiz access after it passes. You can also manually change the <em>Status</em> (e.g. set to <strong>live</strong> to make a contest immediately playable).
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card pad={0}>
+        {loading ? <Spinner /> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: `2px solid ${C.border}` }}>
+                  {['Contest', 'Quiz', 'Status', 'Starts At', 'Ends At', 'Participants', 'Actions'].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={7}><EmptyTable msg="No contests found." /></td></tr>
+                ) : filtered.map(c => (
+                  <tr key={c.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: '11px 14px', fontWeight: 700, color: C.primary, maxWidth: 200 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                      {c.template_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>📋 {c.template_name}</div>}
+                    </td>
+                    <td style={{ padding: '11px 14px', color: C.secondary, maxWidth: 160 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.quiz_title || '—'}</div>
+                      {c.duration_minutes && <div style={{ fontSize: 11, color: C.muted }}>{c.duration_minutes} mins</div>}
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '3px 10px', borderRadius: 999,
+                        fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        background: (STATUS_COLOR[c.status] || '#6b7280') + '18',
+                        color: STATUS_COLOR[c.status] || '#6b7280',
+                      }}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 14px', whiteSpace: 'nowrap', fontSize: 12, color: c.starts_at ? C.primary : C.muted }}>
+                      {c.starts_at ? fmtTime(c.starts_at) : <span style={{ fontStyle: 'italic' }}>Not set</span>}
+                    </td>
+                    <td style={{ padding: '11px 14px', whiteSpace: 'nowrap', fontSize: 12, color: c.ends_at ? C.primary : C.muted }}>
+                      {c.ends_at ? fmtTime(c.ends_at) : <span style={{ fontStyle: 'italic' }}>Not set</span>}
+                    </td>
+                    <td style={{ padding: '11px 14px', fontWeight: 700, color: C.primary, whiteSpace: 'nowrap' }}>
+                      {c.current_participants}/{c.max_participants}
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <button
+                        onClick={() => openModal(c)}
+                        style={{
+                          padding: '6px 14px', borderRadius: 8,
+                          border: `1px solid ${C.purple}`,
+                          background: C.purple + '10', color: C.purple,
+                          cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        📅 Schedule
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Schedule Modal */}
+      {modal && (
+        <Modal title={`Schedule — ${modal.name}`} onClose={() => setModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Current status badge */}
+            <div style={{
+              background: '#f8fafc', border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: '10px 14px', fontSize: 13, color: C.secondary,
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span>Current status:</span>
+              <span style={{
+                display: 'inline-block', padding: '2px 10px', borderRadius: 999,
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                background: (STATUS_COLOR[modal.status] || '#6b7280') + '18',
+                color: STATUS_COLOR[modal.status] || '#6b7280',
+              }}>
+                {modal.status}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: C.muted }}>
+                {modal.current_participants}/{modal.max_participants} participants
+              </span>
+            </div>
+
+            {/* Start Time */}
+            <div>
+              <label style={LBL}>📅 Start Date & Time</label>
+              <input
+                type="datetime-local"
+                value={form.startsAt}
+                onChange={e => setForm(f => ({ ...f, startsAt: e.target.value }))}
+                style={INP}
+              />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                Users cannot access the quiz before this time. Leave blank for no restriction.
+              </div>
+            </div>
+
+            {/* End Time */}
+            <div>
+              <label style={LBL}>⏰ End Date & Time</label>
+              <input
+                type="datetime-local"
+                value={form.endsAt}
+                onChange={e => setForm(f => ({ ...f, endsAt: e.target.value }))}
+                style={INP}
+              />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                Quiz access is blocked after this time. Leave blank for no restriction.
+              </div>
+            </div>
+
+            {/* Status Override */}
+            <div>
+              <label style={LBL}>⚙️ Change Status</label>
+              <select
+                value={form.status}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                style={{ ...INP, cursor: 'pointer' }}
+              >
+                {STATUS_OPTS.map(s => (
+                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                ))}
+              </select>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                Setting to <strong>live</strong> makes the quiz immediately playable by registered participants.
+              </div>
+            </div>
+
+            {/* Warning for live */}
+            {form.status === 'live' && modal.status !== 'live' && (
+              <div style={{
+                background: '#fffbeb', border: '1px solid #fde68a',
+                borderRadius: 10, padding: '10px 14px', fontSize: 12,
+                color: '#92400e', display: 'flex', gap: 8, alignItems: 'flex-start',
+              }}>
+                <span>⚠️</span>
+                <span>Setting to <strong>live</strong> will allow all registered participants to start the quiz immediately. Ensure the contest has been filled and is ready.</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 12, paddingTop: 4 }}>
+              <button
+                onClick={() => setModal(null)}
+                style={{ flex: 1, padding: '11px', borderRadius: 9, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14, color: C.secondary }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={save}
+                disabled={saving}
+                style={{ flex: 2, padding: '11px', borderRadius: 9, border: 'none', background: C.purple, color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 14, opacity: saving ? 0.75 : 1 }}
+              >
+                {saving ? 'Saving…' : '💾 Save Schedule'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+

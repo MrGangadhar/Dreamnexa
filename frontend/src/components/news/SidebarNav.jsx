@@ -7,53 +7,14 @@
  */
 
 import React, { useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBriefcase, FiRadio, FiBook, FiCheckSquare, FiTarget,
   FiTrendingUp, FiAward, FiCreditCard, FiRepeat, FiBell, FiBookmark,
-  FiUser, FiStar, FiHelpCircle, FiSettings, FiLogOut, FiX,
+  FiUser, FiHelpCircle, FiSettings, FiLogOut, FiX
 } from 'react-icons/fi';
-
-const MENU_SECTIONS = [
-  {
-    title: 'Main',
-    items: [
-      { to: '/dashboard',   icon: FiHome,        label: 'Dashboard' },
-      { to: '/jobs',        icon: FiBriefcase,   label: 'Latest Government Jobs' },
-      { to: '/news',        icon: FiRadio,       label: 'Latest News', isNew: true },
-      { to: '/current-affairs', icon: FiBook,    label: 'Current Affairs' },
-    ],
-  },
-  {
-    title: 'Compete',
-    items: [
-      { to: '/quiz',        icon: FiCheckSquare, label: 'Daily Quiz' },
-      { to: '/contests',    icon: FiTarget,      label: 'Mock Tests' },
-      { to: '/contests',    icon: FiTrendingUp,  label: 'Contest' },
-      { to: '/leaderboard', icon: FiAward,       label: 'Leaderboard' },
-    ],
-  },
-  {
-    title: 'Account',
-    items: [
-      { to: '/wallet',       icon: FiCreditCard,  label: 'My Wallet' },
-      { to: '/transactions', icon: FiRepeat,      label: 'Transactions' },
-      { to: '/notifications',icon: FiBell,        label: 'Notifications' },
-      { to: '/bookmarks',    icon: FiBookmark,    label: 'Bookmarks' },
-      { to: '/profile',      icon: FiUser,        label: 'Profile' },
-      { to: '/subscription', icon: FiStar,        label: 'Subscription' },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [
-      { to: '/help',     icon: FiHelpCircle, label: 'Help & Support' },
-      { to: '/settings', icon: FiSettings,   label: 'Settings' },
-    ],
-  },
-];
 
 const overlayVariants = {
   hidden:  { opacity: 0 },
@@ -66,14 +27,9 @@ const drawerVariants = {
   exit:    { x: '-100%', transition: { duration: 0.25 } },
 };
 
-/**
- * @param {boolean}  isOpen   — controlled open state
- * @param {Function} onClose  — close callback
- */
 export default function SidebarNav({ isOpen, onClose }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
 
   /* Close on Escape */
   useEffect(() => {
@@ -89,11 +45,51 @@ export default function SidebarNav({ isOpen, onClose }) {
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  const handleLogout = async () => {
-    onClose();
-    await logout();
-    navigate('/');
-  };
+  // Construct sections dynamically based on auth status
+  const menuSections = [
+    {
+      title: 'Main',
+      items: [
+        { to: '/dashboard',       icon: FiHome,        label: 'Dashboard' },
+        { to: '/jobs',            icon: FiBriefcase,   label: 'Latest Government Jobs' },
+        { to: '/news',            icon: FiRadio,       label: 'Latest News', isNew: true },
+        { to: '/current-affairs', icon: FiBook,        label: 'Current Affairs' },
+      ],
+    },
+    {
+      title: 'Compete',
+      items: [
+        { to: '/daily-quiz',  icon: FiCheckSquare, label: 'Daily Quiz' },
+        { to: '/mock-tests',  icon: FiTarget,      label: 'Mock Tests' },
+        { to: '/contests',    icon: FiTrendingUp,  label: 'Contest' },
+        { to: '/leaderboard', icon: FiAward,       label: 'Leaderboard' },
+      ],
+    },
+    {
+      title: 'Account',
+      items: [
+        { to: '/wallet',        icon: FiCreditCard, label: 'My Wallet' },
+        { to: '/transactions',  icon: FiRepeat,     label: 'Transactions' },
+        { to: '/notifications', icon: FiBell,       label: 'Notifications' },
+        { to: '/bookmarks',     icon: FiBookmark,   label: 'Bookmarks' },
+        { to: '/profile',       icon: FiUser,       label: 'Profile' },
+      ],
+    },
+  ];
+
+  const supportItems = [
+    { to: '/help-support',   icon: FiHelpCircle, label: 'Help & Support' },
+    { to: '/settings',       icon: FiSettings,   label: 'Settings' },
+  ];
+
+  if (user) {
+    supportItems.push({ to: '/logout', icon: FiLogOut, label: 'Logout' });
+  }
+
+  menuSections.push({
+    title: 'Support',
+    items: supportItems,
+  });
 
   return (
     <AnimatePresence>
@@ -136,7 +132,19 @@ export default function SidebarNav({ isOpen, onClose }) {
             {/* User info */}
             {user && (
               <div className="sidebar-user">
-                <div className="sidebar-avatar">
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'var(--accent-red-soft)',
+                  color: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}>
                   {(user.full_name || user.username || 'U')[0].toUpperCase()}
                 </div>
                 <div>
@@ -152,7 +160,7 @@ export default function SidebarNav({ isOpen, onClose }) {
 
             {/* Menu sections */}
             <nav className="sidebar-menu">
-              {MENU_SECTIONS.map((section) => (
+              {menuSections.map((section) => (
                 <div key={section.title}>
                   <div className="sidebar-section-title">{section.title}</div>
                   {section.items.map(({ to, icon: Icon, label, isNew }) => (
@@ -182,17 +190,6 @@ export default function SidebarNav({ isOpen, onClose }) {
                     <FiSettings className="sidebar-item-icon" />
                     Admin Control Room
                   </Link>
-                </div>
-              )}
-
-              {/* Logout */}
-              {user && (
-                <div>
-                  <div className="sidebar-section-title"> </div>
-                  <button className="sidebar-item" onClick={handleLogout}>
-                    <FiLogOut className="sidebar-item-icon" style={{ color: 'var(--accent)' }} />
-                    <span style={{ color: 'var(--accent)' }}>Logout</span>
-                  </button>
                 </div>
               )}
             </nav>

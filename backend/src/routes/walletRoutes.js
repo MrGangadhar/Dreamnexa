@@ -11,7 +11,10 @@ router.get('/', wc.getWalletSummary);
 router.get('/history', wc.getPointsHistory);
 router.get('/prize-history', wc.getPrizeHistory);
 router.get('/withdraw-history', wc.getWithdrawHistory);
+router.get('/payout-details', wc.getPayoutDetails);
+router.put('/payout-details', wc.updatePayoutDetails);
 router.post('/withdraw', wc.withdraw);
 router.post('/redeem-coupon', wc.redeemCoupon);
 
 module.exports = router;
+

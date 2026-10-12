@@ -235,25 +235,45 @@ async function updateArticle(req, res, next) {
       articleType, vlogUrl, authorName, isPublished, isFeatured,
     } = req.body;
 
+    // String/text COALESCE is fine in MySQL — only TINYINT boolean columns
+    // need to be handled separately to avoid "Incorrect arguments to
+    // COM_STMT_EXECUTE" when null is passed via a prepared statement.
+    const sets = [
+      `title        = COALESCE($1, title)`,
+      `description  = COALESCE($2, description)`,
+      `content      = COALESCE($3, content)`,
+      `image_url    = COALESCE($4, image_url)`,
+      `category     = COALESCE($5, category)`,
+      `article_type = COALESCE($6, article_type)`,
+      `vlog_url     = COALESCE($7, vlog_url)`,
+      `author_name  = COALESCE($8, author_name)`,
+      `updated_at   = now()`,
+    ];
+    const params = [
+      title ?? null,
+      description ?? null,
+      content ?? null,
+      imageUrl ?? null,
+      category ? category.toLowerCase() : null,
+      articleType ?? null,
+      vlogUrl ?? null,
+      authorName ?? null,
+    ];
+
+    // Boolean TINYINT columns: only add to SET when value is explicitly provided
+    if (isPublished !== undefined) {
+      params.push(isPublished ? 1 : 0);
+      sets.push(`is_published = $${params.length}`);
+    }
+    if (isFeatured !== undefined) {
+      params.push(isFeatured ? 1 : 0);
+      sets.push(`is_featured = $${params.length}`);
+    }
+
+    params.push(id);
     const result = await query(
-      `UPDATE news_articles SET
-         title        = COALESCE($1, title),
-         description  = COALESCE($2, description),
-         content      = COALESCE($3, content),
-         image_url    = COALESCE($4, image_url),
-         category     = COALESCE($5, category),
-         article_type = COALESCE($6, article_type),
-         vlog_url     = COALESCE($7, vlog_url),
-         author_name  = COALESCE($8, author_name),
-         is_published = COALESCE($9, is_published),
-         is_featured  = COALESCE($10, is_featured),
-         updated_at   = now()
-       WHERE id = $11
-       RETURNING *`,
-      [title, description, content, imageUrl,
-       category ? category.toLowerCase() : null,
-       articleType, vlogUrl, authorName,
-       isPublished, isFeatured, id],
+      `UPDATE news_articles SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params,
     );
 
     if (!result.rows[0]) {
@@ -265,6 +285,7 @@ async function updateArticle(req, res, next) {
     next(err);
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN: DELETE /api/news/articles/:id  (requireAuth + requireAdmin)

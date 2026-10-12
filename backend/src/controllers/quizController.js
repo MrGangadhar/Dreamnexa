@@ -1,5 +1,6 @@
 const { query, withTransaction } = require('../db/pool');
 const { evaluateContest } = require('../utils/resultsEngine');
+const { finalDecision } = require('../utils/proctoringEngine');
 
 // Fetch quiz questions WITHOUT correct answers (for taking the quiz)
 async function getQuizForAttempt(req, res, next) {
@@ -13,6 +14,23 @@ async function getQuizForAttempt(req, res, next) {
     if (!['live', 'locked'].includes(contest.status)) {
       return res.status(400).json({ error: 'This contest is not currently live.' });
     }
+
+    // ── Time-window enforcement ────────────────────────────────────────────────
+    const now = Date.now();
+    if (contest.starts_at && now < new Date(contest.starts_at).getTime()) {
+      const startsIn = new Date(contest.starts_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      return res.status(403).json({
+        error: `Quiz access is not open yet. It will be available from ${startsIn} (IST).`,
+        startsAt: contest.starts_at,
+      });
+    }
+    if (contest.ends_at && now > new Date(contest.ends_at).getTime()) {
+      return res.status(403).json({
+        error: 'The quiz time window has expired. Results will be published shortly.',
+        endsAt: contest.ends_at,
+      });
+    }
+
 
     const participant = (
       await query(
@@ -37,7 +55,13 @@ async function getQuizForAttempt(req, res, next) {
     );
 
     res.json({
-      quiz: { id: quiz.id, title: quiz.title, instructions: quiz.instructions, duration_minutes: quiz.duration_minutes },
+      quiz: {
+        id: quiz.id,
+        title: quiz.title,
+        instructions: quiz.instructions,
+        duration_minutes: quiz.duration_minutes,
+        proctoringEnabled: !!quiz.proctoring_enabled && process.env.PROCTORING_ENABLED !== 'false',
+      },
       questions: questions.rows,
       contestEndsAt: contest.ends_at,
     });
@@ -67,6 +91,9 @@ async function submitAttempt(req, res, next) {
         await client.query(`SELECT * FROM questions WHERE quiz_id = $1`, [attempt.quiz_id])
       ).rows;
       const questionMap = new Map(questions.map((q) => [q.id, q]));
+      const quizRow = (
+        await client.query(`SELECT passing_marks FROM quizzes WHERE id = $1`, [attempt.quiz_id])
+      ).rows[0];
 
       let totalScore = 0;
       let correctCount = 0;
@@ -96,6 +123,26 @@ async function submitAttempt(req, res, next) {
         );
       }
 
+      // Human-readable explanation of the result — previously the student
+      // only ever saw raw numbers with no explanation of *why* they scored
+      // what they did, especially when they failed to pass or scored low.
+      const totalQuestions = questions.length;
+      const skippedCount = Math.max(0, totalQuestions - correctCount - wrongCount);
+      const passingMarks = quizRow?.passing_marks || 0;
+      const passed = passingMarks > 0 ? totalScore >= passingMarks : totalScore > 0;
+      let remarks;
+      if (passed) {
+        remarks = `Nice work — you scored ${totalScore} with ${correctCount}/${totalQuestions} correct.`;
+      } else {
+        const reasons = [];
+        if (wrongCount > 0) reasons.push(`${wrongCount} answer${wrongCount === 1 ? '' : 's'} were incorrect (negative marking applied)`);
+        if (skippedCount > 0) reasons.push(`${skippedCount} question${skippedCount === 1 ? '' : 's'} were left unanswered`);
+        if (correctCount === 0) reasons.push('none of your answers were correct');
+        remarks = reasons.length
+          ? `You scored ${totalScore}${passingMarks ? ` (needed ${passingMarks} to pass)` : ''} — ${reasons.join(' and ')}. Review the topic and try another contest to improve your rank!`
+          : `You scored ${totalScore}. Try another contest to improve your rank!`;
+      }
+
       const timeTakenSeconds = Math.max(
         0,
         Math.round((Date.now() - new Date(attempt.started_at).getTime()) / 1000)
@@ -113,6 +160,45 @@ async function submitAttempt(req, res, next) {
         [totalScore, correctCount, wrongCount, timeTakenSeconds, contestId, req.user.id]
       );
 
+      // Finalize the AI Quiz Proctor session for this attempt, if one exists.
+      // Reads back every event this session logged and applies the same
+      // evidence-based decision engine used for live warnings.
+      let proctoring = null;
+      const sessionRes = await client.query(
+        `SELECT * FROM proctoring_sessions WHERE attempt_id = $1`,
+        [attempt.id]
+      );
+      if (sessionRes.rows[0]) {
+        const session = sessionRes.rows[0];
+        const severityCounts = {
+          low: session.low_count,
+          medium: session.medium_count,
+          high: session.high_count,
+          critical: session.critical_count,
+        };
+        const distinctRes = await client.query(
+          `SELECT COUNT(DISTINCT event_type) AS c FROM proctoring_events WHERE session_id = $1`,
+          [session.id]
+        );
+        const decision = finalDecision({
+          riskScore: session.risk_score,
+          severityCounts,
+          distinctEventTypesTriggered: distinctRes.rows[0].c,
+        });
+        const updatedSession = await client.query(
+          `UPDATE proctoring_sessions SET
+             status = 'completed', ended_at = now(),
+             final_status = $1, final_reason = $2
+           WHERE id = $3 RETURNING *`,
+          [decision.finalStatus, decision.reason, session.id]
+        );
+        proctoring = {
+          riskScore: updatedSession.rows[0].risk_score,
+          finalStatus: updatedSession.rows[0].final_status,
+          reason: updatedSession.rows[0].final_reason,
+        };
+      }
+
       // If every participant has submitted, evaluate + distribute rewards now
       const pendingCount = (
         await client.query(
@@ -128,7 +214,16 @@ async function submitAttempt(req, res, next) {
         evaluated = await evaluateContest(client, contestId);
       }
 
-      return { score: totalScore, correctCount, wrongCount, evaluated: !!evaluated };
+      return {
+        score: totalScore,
+        correctCount,
+        wrongCount,
+        skippedCount,
+        passed,
+        remarks,
+        evaluated: !!evaluated,
+        proctoring,
+      };
     });
 
     res.json({ message: 'Quiz submitted.', ...result });

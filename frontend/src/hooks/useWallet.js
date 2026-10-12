@@ -29,6 +29,23 @@ export const useWithdrawHistory = () => {
   });
 };
 
+export const usePayoutDetails = () => {
+  return useQuery({
+    queryKey: ['payoutDetails'],
+    queryFn: walletApi.getPayoutDetails,
+  });
+};
+
+export const useUpdatePayoutDetailsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: walletApi.updatePayoutDetails,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payoutDetails'] });
+    },
+  });
+};
+
 export const useWithdrawMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -40,6 +57,7 @@ export const useWithdrawMutation = () => {
     },
   });
 };
+
 
 export const useRedeemCouponMutation = () => {
   const queryClient = useQueryClient();

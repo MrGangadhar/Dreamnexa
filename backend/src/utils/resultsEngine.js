@@ -32,7 +32,7 @@ async function evaluateContest(client, contestId) {
   let rank = 0;
   for (const p of participants.rows) {
     rank += 1;
-    await client.query(`UPDATE contest_participants SET rank = $1 WHERE id = $2`, [rank, p.id]);
+    await client.query(`UPDATE contest_participants SET \`rank\` = $1 WHERE id = $2`, [rank, p.id]);
 
     const reward = rewardByRank.get(rank);
     if (reward) {

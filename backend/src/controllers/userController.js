@@ -10,7 +10,10 @@ const {
 async function getMe(req, res, next) {
   try {
     if (shouldUseMockData() || req.user.id === 'demo-user-id') {
-      return res.json(getDemoProfile());
+      // Pass the logged-in username through so the mock profile reflects
+      // the actual role from the JWT (e.g. admin) instead of always
+      // falling back to the default demo student profile.
+      return res.json(getDemoProfile(req.user.username));
     }
 
     const result = await query(
@@ -115,4 +118,43 @@ async function getMyBadges(req, res, next) {
   }
 }
 
-module.exports = { getMe, updateProfile, getPointsHistory, getMyContests, getMyBadges };
+/**
+ * POST /api/contact — public endpoint
+ * Accepts name, email, subject, message and stores them in admin_logs.
+ * No auth required.
+ */
+async function submitContactForm(req, res, next) {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    // Validate
+    const errors = [];
+    if (!name || !String(name).trim()) errors.push('Name is required.');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) errors.push('A valid email is required.');
+    if (!subject || !String(subject).trim()) errors.push('Subject is required.');
+    if (!message || String(message).trim().length < 20) errors.push('Message must be at least 20 characters.');
+
+    if (errors.length) {
+      return res.status(400).json({ error: errors[0] });
+    }
+
+    const details = JSON.stringify({
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
+      subject: String(subject).trim(),
+      message: String(message).trim(),
+    });
+
+    await query(
+      `INSERT INTO admin_logs (admin_id, action, target_type, details)
+       VALUES ('system', 'contact_form_submission', 'contact', $1)`,
+      [details]
+    );
+
+    res.json({ message: 'Thank you! Your message has been received. We\'ll get back to you within 24–48 hours.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getMe, updateProfile, getPointsHistory, getMyContests, getMyBadges, submitContactForm };
