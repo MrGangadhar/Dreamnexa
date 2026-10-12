@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://dreamnexa-l234.onrender.com/api/$1"
+      "destination": "https://dreamnexa-backend-549681025567.asia-south1.run.app/api/$1"
     },
     {
       "source": "/(.*)",
