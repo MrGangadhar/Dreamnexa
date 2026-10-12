@@ -276,6 +276,15 @@ exports.getCurrentAffairs = async (req, res) => {
       countSql += ` AND is_featured = 1`;
     }
 
+    if (exam_tag && exam_tag.trim()) {
+      // MySQL JSON array search: exam_tags is stored as JSON array string e.g. '["UPSC","SSC"]'
+      const tagParam = JSON.stringify(exam_tag.trim());
+      sql += ` AND JSON_CONTAINS(exam_tags, $${params.length + 1})`;
+      countSql += ` AND JSON_CONTAINS(exam_tags, $${countParams.length + 1})`;
+      params.push(tagParam);
+      countParams.push(tagParam);
+    }
+
     if (search) {
       const pIdx = params.length;
       sql += ` AND (title ILIKE $${pIdx + 1} OR summary ILIKE $${pIdx + 2} OR content ILIKE $${pIdx + 3})`;
