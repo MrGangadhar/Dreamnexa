@@ -27,10 +27,9 @@ async function bootstrapDatabase() {
 if (require.main === module) {
   bootstrapDatabase()
     .catch((err) => {
-      console.error('✖ Database bootstrap failed:', err);
-      process.exit(1);
+      console.error('⚠ Database bootstrap warning (server will continue running):', err.message);
     })
-    .then(() => {
+    .finally(() => {
       const server = http.createServer(app);
       const io = initSocket(server);
       app.set('io', io);
