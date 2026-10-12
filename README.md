@@ -197,10 +197,8 @@ but **serverless platforms like Vercel give each function invocation
 an ephemeral, often-isolated filesystem** — a local SQLite file will
 not reliably persist or stay consistent across requests there. For
 DreamNexa's SQLite-only setup, deploy the backend to something with a
-persistent disk instead: a small VM, Render/Railway/Fly.io with a
-mounted volume, or a container host — pointing SQLITE_PATH at that
-persistent path. If you do need serverless, swap SQLite for a hosted
-serverless-friendly SQLite (e.g. Turso/libSQL) rather than a local file.
+persistent disk instead: a container host like Google Cloud Run with Cloud SQL,
+a small VM, or a managed MySQL database.
 
 ## What's intentionally not included
 

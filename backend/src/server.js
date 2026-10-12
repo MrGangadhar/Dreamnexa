@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5000;
 
 // Every schema file uses CREATE TABLE IF NOT EXISTS, so running migrations
 // on every boot is safe and guarantees the app never silently falls back
-// to demo/mock data because a migration step was skipped (Render, Vercel,
+// to demo/mock data because a migration step was skipped (Cloud Run, Vercel,
 // a fresh clone, `npm start` before `npm run migrate`, etc.).
 async function bootstrapDatabase() {
   await runMigrations();

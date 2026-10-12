@@ -62,7 +62,7 @@ async function tableExists(tableName) {
 /**
  * Runs every schema/migration file. Every statement uses
  * `CREATE TABLE IF NOT EXISTS`, so this is safe to call on every single
- * server boot (local `npm start`, Render, Vercel, tests, ...) — it is
+ * server boot (local `npm start`, Cloud Run, Vercel, tests, ...) — it is
  * intentionally NOT gated behind a one-time "ran already" flag, because
  * that flag is exactly what let this project ship with an empty database
  * (every request silently falling back to demo/mock data instead of
