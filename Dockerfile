@@ -2,16 +2,14 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy backend dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+
 COPY backend/package*.json ./
 
-# Install production dependencies
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --no-audit --no-fund
 
-# Copy backend source
 COPY backend/ ./
 
-# Cloud Run port configuration
 ENV PORT=8080
 ENV NODE_ENV=production
 
