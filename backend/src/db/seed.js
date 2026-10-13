@@ -226,40 +226,28 @@ async function seed() {
     // -------------------------------------------------------------
     const articles = [
       {
-        title: 'DreamNexa Launches Daily Current Affairs Quiz',
-        description: 'A new free daily quiz section is now live for all students.',
-        content: 'DreamNexa has rolled out a new free, no-entry-cost Daily Current Affairs Quiz so students can build a quick daily habit of testing their general awareness. New questions are refreshed regularly by the admin team, and every completed quiz earns bonus points that can be used to enter higher-value contests.',
-        category: 'platform', type: 'news', featured: 1,
+        title: '🎥 Expert Masterclass: How to Score High in Government & Campus Quizzes',
+        description: 'Watch this comprehensive strategy vlog covering proven time-management tactics, accuracy frameworks, and daily GK revision methods for competitive exams.',
+        content: 'In this video masterclass, we break down key strategies adopted by top rankers preparing for UPSC, SSC, Banking, and State PSC examinations. Key highlights include: 1. Speed vs Accuracy balance in timed tests, 2. Elimination techniques for multiple-choice questions, 3. Daily 15-minute GK revision routines, and 4. Analyzing performance analytics after every mock test session.',
+        category: 'education', type: 'vlog', vlogUrl: 'https://www.youtube.com/watch?v=kqtD5dpn9C8', featured: 1,
       },
       {
-        title: 'How to Prepare for Campus Quiz Contests',
-        description: 'Five tips to help you climb the leaderboard.',
-        content: 'Consistent daily practice matters more than last-minute cramming. Start with the free sprint quizzes to build speed and accuracy, review the explanation shown after each question, and track which topics cost you the most points so you can focus your next study session there.',
-        category: 'tips', type: 'news', featured: 0,
+        title: 'UPSC Civil Services 2026: Preliminary Examination Syllabus & Preparation Strategy',
+        description: 'A complete analysis of the General Studies Paper I and CSAT structure, recommended standard reference books, and monthly milestone targets for aspirants.',
+        content: 'The Union Public Service Commission (UPSC) Civil Services Examination demands disciplined conceptual clarity across Indian Polity, Modern History, Geography, Economics, and Environment. Candidates are advised to build daily newspaper reading habits, maintain topical notes, and attempt regular sectional quizzes to reinforce static and dynamic syllabus components.',
+        category: 'education', type: 'news', featured: 1,
       },
       {
-        title: 'Understanding AI Proctoring on DreamNexa',
-        description: 'What gets checked when you join a proctored contest, and why.',
-        content: 'Proctored contests use on-device checks: a visible face, a stable fullscreen window, and no tab switching, to help keep results fair for every participant. No video or audio is ever recorded or uploaded; only short derived signals are sent to the server, and only unusual sessions are ever flagged for manual admin review.',
-        category: 'platform', type: 'news', featured: 1,
+        title: 'SSC CGL 2026 Recruitment Drive: Tier-I & Tier-II Pattern Breakdown',
+        description: 'Staff Selection Commission announces upcoming schedule. Understand the exam pattern, section-wise weightage, and negative marking rules.',
+        content: 'The Staff Selection Commission Combined Graduate Level (SSC CGL) exam tests Quantitative Aptitude, Reasoning, English Comprehension, and General Awareness. Aspirants should prioritize high-scoring topics, memorize standard formulas, and practice timed computer-based mock tests regularly.',
+        category: 'jobs', type: 'news', featured: 0,
       },
       {
-        title: 'Weekly Recap: Top Scorers on the Campus GK Sprint',
-        description: 'A look back at this week\'s most active quiz contest.',
-        content: 'The Campus GK Sprint continues to be the most-joined free contest on the platform this week, with seats filling within minutes of each new round opening. Congratulations to everyone who placed on the leaderboard, and keep an eye on the Contests page for the next round.',
-        category: 'community', type: 'vlog', vlogUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', featured: 0,
-      },
-      {
-        title: 'Vlog: 3 Study Habits of Our Top-Ranked Players',
-        description: 'We asked our highest scorers how they prepare between contests.',
-        content: 'In this recap we spoke with a few of the students at the top of the leaderboard about their routines. The common thread: short, frequent practice sessions on the free sprint quizzes rather than long cramming sessions, plus reading the answer explanation after every question, right or wrong, to close knowledge gaps quickly.',
-        category: 'community', type: 'vlog', vlogUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', featured: 0,
-      },
-      {
-        title: 'Vlog: A Walkthrough of the AI Proctoring System Check',
-        description: 'What the camera, microphone, and fullscreen checks actually look like before a proctored contest.',
-        content: 'Before any proctored contest, students go through a short consent step followed by a live system check: camera preview, microphone level, and a fullscreen prompt. This walkthrough covers what each indicator means and what to do if the camera or microphone check does not pass on the first try.',
-        category: 'platform', type: 'vlog', vlogUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', featured: 0,
+        title: 'Monthly Current Affairs & GK Digest: Key National and Global Milestones',
+        description: 'Essential policy updates, science & technology breakthroughs, international summits, and economic indicators curated for exam revision.',
+        content: 'This monthly review compiles crucial developments across governance, environmental summits, bilateral agreements, defense exercises, and economic indices. Review each section carefully and test your retention with our daily current affairs quiz sprints.',
+        category: 'current-affairs', type: 'news', featured: 0,
       },
     ];
 

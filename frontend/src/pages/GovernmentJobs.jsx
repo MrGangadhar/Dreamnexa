@@ -342,12 +342,12 @@ export default function GovernmentJobs() {
       {selectedJob && (
         <div className="govt-modal-overlay" onClick={() => setSelectedJob(null)}>
           <div className="govt-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="govt-modal-header">
-              <button className="govt-modal-close-btn" onClick={() => setSelectedJob(null)}>✕</button>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#c7d2fe', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+            <div className="govt-modal-header" style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+              <button className="govt-modal-close-btn" style={{ background: '#e2e8f0', color: '#1e293b' }} onClick={() => setSelectedJob(null)}>✕</button>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                 {selectedJob.department || 'GOVERNMENT RECRUITMENT'}
               </div>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{selectedJob.post_name || selectedJob.postName}</h2>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{selectedJob.post_name || selectedJob.postName}</h2>
             </div>
 
             <div className="govt-modal-body">

@@ -59,7 +59,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="footer-brand-desc">
-              Free educational platform for Indian students. Discover government job alerts, current affairs &amp; GK, and participate in free quiz challenges.
+              Educational portal for Indian aspirants. Discover verified government job notifications, daily current affairs &amp; GK, and participate in competitive quiz challenges.
             </p>
             <div>
               <a href="mailto:support@dreamnexa.in" className="footer-contact-link">

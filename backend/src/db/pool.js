@@ -55,10 +55,12 @@ require('dotenv').config();
 function buildPoolConfig() {
   const base = {
     waitForConnections: true,
-    connectionLimit: Number(process.env.DB_POOL_SIZE || 10),
+    connectionLimit: Number(process.env.DB_POOL_SIZE || 25),
     queueLimit: 0,
     decimalNumbers: true, // return DECIMAL columns as JS numbers, not strings
     timezone: 'Z',
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
   };
 
   const socketPath = process.env.INSTANCE_UNIX_SOCKET

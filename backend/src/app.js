@@ -63,7 +63,7 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, '../uploads')));
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
-const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
+const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
 app.use('/api', globalLimiter);
 
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'dreamnexa-backend' }));

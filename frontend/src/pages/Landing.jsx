@@ -56,10 +56,10 @@ const CONTENT_CATEGORIES = [
 ];
 
 const PLATFORM_STATS = [
-  { value: '10,000+', label: 'Registered Students' },
-  { value: '27+', label: 'Govt Job Listings' },
-  { value: '100+', label: 'Quiz Contests Hosted' },
-  { value: '100%', label: 'Free to Use' },
+  { value: '10k+',  label: 'Registered Students', icon: '🎓', gradient: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' },
+  { value: '100+', label: 'Govt Job Listings',    icon: '🏛️', gradient: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)' },
+  { value: '100+', label: 'Quiz Contests Hosted', icon: '🏆', gradient: 'linear-gradient(135deg, #C8102E 0%, #ff4d6d 100%)' },
+  { value: '100%', label: 'Verified Official Alerts', icon: '✅', gradient: 'linear-gradient(135deg, #16a34a 0%, #4ade80 100%)' },
 ];
 
 export default function Landing() {
@@ -68,8 +68,8 @@ export default function Landing() {
   const [loading, setLoading] = useState(true);
 
   useSEO({
-    title: 'DreamNexa — Government Jobs, Current Affairs & Free Quiz Contests',
-    description: 'Free educational platform for Indian students. Verified govt job alerts, daily current affairs & GK updates, and free multiplayer quiz contests.',
+    title: 'DreamNexa — Government Jobs, Current Affairs & Quiz Contests',
+    description: 'Educational platform for Indian students. Verified govt job notifications, daily current affairs & GK updates, and competitive campus quiz contests.',
     canonical: 'https://dreamnexa.in/',
   });
 
@@ -107,7 +107,7 @@ export default function Landing() {
             textTransform: 'uppercase', letterSpacing: '0.08em',
             marginBottom: 20, border: '1px solid rgba(255,255,255,0.2)',
           }}>
-            Free for all Indian Students
+            India's Student Opportunity &amp; Exam Portal
           </span>
           <h1 style={{
             fontSize: 'clamp(30px, 5.5vw, 52px)',
@@ -126,37 +126,70 @@ export default function Landing() {
             margin: '0 auto 32px',
             lineHeight: 1.65,
           }}>
-            One platform for everything a competitive exam student needs — official government job alerts,
-            daily GK &amp; current affairs, and free multiplayer quizzes.
+            One comprehensive platform for competitive exam aspirants — verified government job alerts,
+            daily GK &amp; current affairs, and live quiz contests.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/government-jobs" className="btn btn-lg" style={{ background: '#fff', color: '#C8102E', fontWeight: 700, border: 'none' }}>
               🏛️ Explore Govt Jobs
             </Link>
-            <Link to="/register" className="btn btn-lg" style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.5)', fontWeight: 600 }}>
-              Join Free &amp; Play Quizzes
+            <Link to="/contests" className="btn btn-lg" style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.5)', fontWeight: 600 }}>
+              🎯 Play Quiz Contests
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Platform Stats ─────────────────────────────────────────── */}
+      {/* ── Platform Stats Shadow Cards ─────────────────────────────── */}
       <section style={{
-        background: 'var(--bg-card)',
-        borderBottom: '1px solid var(--border)',
-        padding: '28px 0',
+        background: 'var(--bg-primary)',
+        padding: '36px 0 20px',
+        position: 'relative',
+        zIndex: 10,
       }}>
         <div className="container">
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 16,
-            textAlign: 'center',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 18,
           }}>
-            {PLATFORM_STATS.map(({ value, label }) => (
-              <div key={label}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', marginBottom: 4 }}>{value}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</div>
+            {PLATFORM_STATS.map(({ value, label, icon, gradient }) => (
+              <div
+                key={label}
+                style={{
+                  background: 'var(--bg-card)',
+                  borderRadius: 16,
+                  padding: '24px 20px',
+                  textAlign: 'center',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                  border: '1px solid var(--border)',
+                  transition: 'transform 0.22s ease, box-shadow 0.22s ease',
+                  cursor: 'default',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 35px -8px rgba(0, 0, 0, 0.14), 0 10px 12px -5px rgba(0, 0, 0, 0.05)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)';
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
+                <div style={{
+                  fontSize: 32,
+                  fontWeight: 900,
+                  background: gradient,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.02em',
+                  marginBottom: 6,
+                }}>
+                  {value}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {label}
+                </div>
               </div>
             ))}
           </div>
@@ -284,7 +317,7 @@ export default function Landing() {
             {[
               { icon: '✅', title: 'Verified Job Listings', body: 'Every government job notification is sourced from official government and recruitment board websites.' },
               { icon: '📅', title: 'Daily GK Updates', body: 'Current affairs and GK summaries for UPSC, SSC, Banking, and State PSC examinations updated regularly.' },
-              { icon: '🆓', title: 'Always Free', body: '100% free to use. No wallet, no entry fee, no cash prizes — just knowledge and healthy competition.' },
+              { icon: '⚖️', title: 'Fair & Pure Merit', body: 'Skill-focused learning. No paywalls, no gambling, and transparent evaluation for every participant.' },
               { icon: '📊', title: 'Live Leaderboards', body: 'Compete with students across India and track your rank in real time after every quiz.' },
             ].map(({ icon, title, body }) => (
               <div key={title} className="card" style={{ padding: 24, textAlign: 'center' }}>
@@ -311,11 +344,11 @@ export default function Landing() {
             Join thousands of students using DreamNexa to prepare for competitive exams.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/register" className="btn btn-lg" style={{ background: '#fff', color: '#C8102E', fontWeight: 700 }}>
-              Create Free Account
+            <Link to="/contests" className="btn btn-lg" style={{ background: '#fff', color: '#C8102E', fontWeight: 700 }}>
+              🎯 Enter Contest Arena
             </Link>
             <Link to="/government-jobs" className="btn btn-lg" style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.5)' }}>
-              Browse Govt Jobs
+              🏛️ Browse Govt Jobs
             </Link>
           </div>
         </div>
