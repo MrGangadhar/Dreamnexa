@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import ContestCard from '../components/ContestCard';
 import { FiTarget, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
+import { useSEO } from '../hooks/useSEO';
 
 export default function MockTests() {
+  useSEO({
+    title: 'Online Mock Tests & Practice Series | DreamNexa',
+    description: 'Prepare for competitive government and entrance examinations with mock test series on DreamNexa. Full length timed tests and detailed reviews.',
+    canonical: 'https://dreamnexa.in/mock-tests',
+  });
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

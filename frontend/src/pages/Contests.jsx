@@ -4,6 +4,7 @@ import client from '../api/client';
 import ContestCard from '../components/ContestCard';
 import AdBanner from '../components/AdBanner';
 import { useAuth } from '../context/AuthContext';
+import { useSEO } from '../hooks/useSEO';
 
 const TABS = [
   { key: 'upcoming',  label: 'Open' },
@@ -13,6 +14,11 @@ const TABS = [
 ];
 
 export default function Contests() {
+  useSEO({
+    title: 'Online Quiz Contests 2026 — Win & Rank High | DreamNexa',
+    description: 'Participate in live and upcoming quiz contests on DreamNexa. Real-time multiplayer competitive quizzes, instant leaderboards, and free entry for all students.',
+    canonical: 'https://dreamnexa.in/contests',
+  });
   const { user } = useAuth();
   const navigate = useNavigate();
   const [contests, setContests] = useState([]);

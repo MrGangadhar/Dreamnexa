@@ -1,16 +1,30 @@
-# robots.txt for DreamNexa
+# robots.txt for DreamNexa — https://dreamnexa.in
 User-agent: *
 Allow: /
 Allow: /jobs
 Allow: /government-jobs
 Allow: /current-affairs
+Allow: /news
 Allow: /privacy-policy
 Allow: /terms
+Allow: /terms-and-conditions
 Allow: /contact-us
 Allow: /help-support
 Allow: /contests
+Allow: /leaderboard
+Allow: /about
+Allow: /disclaimer
+Allow: /editorial-policy
 
 Disallow: /admin
+Disallow: /admin/
 Disallow: /api/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /wallet
+Disallow: /transactions
+Disallow: /notifications
+Disallow: /profile
+Disallow: /logout
 
-Sitemap: https://dreamnexa.com/sitemap.xml
+Sitemap: https://dreamnexa.in/sitemap.xml

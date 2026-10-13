@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import client from '../api/client';
+import { useSEO } from '../hooks/useSEO';
 
 const RANK_ICONS = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 export default function Leaderboard() {
+  useSEO({
+    title: 'Top Quiz Champions & National Leaderboard | DreamNexa',
+    description: 'Check out the top performers and campus champions on the DreamNexa leaderboard. Compete in daily quizzes and live contests to earn rank points.',
+    canonical: 'https://dreamnexa.in/leaderboard',
+  });
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 

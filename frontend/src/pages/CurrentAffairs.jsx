@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import { fetchCurrentAffairs } from '../api/currentAffairsApi';
 import '../styles/currentAffairs.css';
+import { useSEO } from '../hooks/useSEO';
 
 const CATEGORIES = [
   { id: 'All', label: 'All Topics', icon: FiLayers },
@@ -20,6 +21,11 @@ const CATEGORIES = [
 const EXAM_TAGS = ['General Knowledge (GK)', 'UPSC', 'SSC', 'Banking', 'Railway', 'State PSC', 'School & College', 'Daily Awareness'];
 
 export default function CurrentAffairs() {
+  useSEO({
+    title: 'Current Affairs & GK Today 2026 — UPSC, SSC, Banking | DreamNexa',
+    description: 'Daily current affairs and general knowledge updates for competitive exam preparation. Covers UPSC, SSC, Banking, Railways, and State PSC. Key points, facts, and analysis.',
+    canonical: 'https://dreamnexa.in/current-affairs',
+  });
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

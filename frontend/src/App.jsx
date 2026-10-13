@@ -24,6 +24,9 @@ import HelpSupport   from './pages/HelpSupport';
 import ContactUs     from './pages/ContactUs';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import AboutUs       from './pages/AboutUs';
+import Disclaimer    from './pages/Disclaimer';
+import EditorialPolicy from './pages/EditorialPolicy';
 import Settings      from './pages/Settings';
 import NotFound      from './pages/NotFound';
 
@@ -35,6 +38,7 @@ import Notifications from './pages/Notifications';
 import Bookmarks     from './pages/Bookmarks';
 import Profile       from './pages/Profile';
 import Logout        from './pages/Logout';
+import Footer        from './components/Footer';
 
 // ── React Query client — 5-min stale time by default ──────────────────────
 const queryClient = new QueryClient({
@@ -66,6 +70,9 @@ export default function App() {
             <Route path="/terms-and-conditions" element={<TermsOfService />} />
             <Route path="/help-support"  element={<HelpSupport />} />
             <Route path="/contact-us"    element={<ContactUs />} />
+            <Route path="/about"          element={<AboutUs />} />
+            <Route path="/disclaimer"     element={<Disclaimer />} />
+            <Route path="/editorial-policy" element={<EditorialPolicy />} />
 
             {/* News/Content Module */}
             <Route path="/news"           element={<News key="news" defaultCategory="all" />} />
@@ -97,6 +104,9 @@ export default function App() {
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+
+          {/* Site-wide footer with all policy + nav links */}
+          <Footer />
 
           {/* Global toast notifications */}
           <Toaster

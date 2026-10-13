@@ -3,6 +3,7 @@ import client from '../api/client';
 import toast from 'react-hot-toast';
 import '../styles/govtJobs.css';
 import { INDIAN_STATES, FALLBACK_SAMPLE_JOBS } from '../data/govtJobsData';
+import { useSEO } from '../hooks/useSEO';
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -12,6 +13,11 @@ function getYouTubeEmbedUrl(url) {
 }
 
 export default function GovernmentJobs() {
+  useSEO({
+    title: 'Government Jobs 2026 — Sarkari Naukri Notifications | DreamNexa',
+    description: 'Browse latest central and state government job recruitment notifications. Check eligibility, vacancies, last dates, and official notification links. Updated daily.',
+    canonical: 'https://dreamnexa.in/government-jobs',
+  });
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

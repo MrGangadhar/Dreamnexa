@@ -39,6 +39,7 @@ import ErrorState           from '../components/news/ErrorState';
 
 import '../styles/news.css';
 import AdBanner from '../components/AdBanner';
+import { useSEO } from '../hooks/useSEO';
 
 // ── Default filter state ───────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
@@ -65,10 +66,11 @@ export default function News({ defaultCategory = 'all' }) {
   const sentinelRef = useRef(null);
 
   /* ── Page title for SEO ─────────────────────────────────────────────── */
-  useEffect(() => {
-    document.title = 'Latest News | DreamNexa — Exam Prep & Current Affairs';
-    return () => { document.title = 'DreamNexa'; };
-  }, []);
+  useSEO({
+    title: 'Education News, Exam Notifications & Campus Updates | DreamNexa',
+    description: 'Read the latest education news, competitive examination announcements, admit card updates, and campus stories on DreamNexa.',
+    canonical: 'https://dreamnexa.in/news',
+  });
 
   /* ── Dark mode effect ─────────────────────────────────────────────────── */
   useEffect(() => {

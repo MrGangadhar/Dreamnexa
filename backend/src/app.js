@@ -26,9 +26,13 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'https://dreamnexa-flame.vercel.app',
   'https://dreamnexa.vercel.app',
   'https://www.dreamnexa.vercel.app',
-  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : [])
+  'https://dreamnexa.in',
+  'https://www.dreamnexa.in',
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  ...(process.env.CLIENT_URL_2 ? [process.env.CLIENT_URL_2] : []),
 ].filter(Boolean);
 
 app.use(helmet({
@@ -36,7 +40,14 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Allow server-to-server requests (no origin) and known client origins only
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    // Allow any Vercel preview deployment for this specific project only
+    // (preview URLs follow the pattern dreamnexa-*-*.vercel.app)
+    if (origin.match(/^https:\/\/dreamnexa-[a-z0-9-]+-[a-z0-9-]+\.vercel\.app$/)) {
       callback(null, true);
       return;
     }

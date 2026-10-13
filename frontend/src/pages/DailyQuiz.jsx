@@ -3,8 +3,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import client from '../api/client';
 import ContestCard from '../components/ContestCard';
 import { FiCheckSquare, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
+import { useSEO } from '../hooks/useSEO';
 
 export default function DailyQuiz() {
+  useSEO({
+    title: 'Daily Quiz Challenge — Free Practice & Points | DreamNexa',
+    description: 'Participate in the DreamNexa daily quiz challenge. Test your general knowledge and exam preparation with free bite-sized quiz sprints.',
+    canonical: 'https://dreamnexa.in/daily-quiz',
+  });
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

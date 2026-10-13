@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBriefcase, FiRadio, FiBook, FiCheckSquare, FiTarget,
   FiTrendingUp, FiAward, FiCreditCard, FiRepeat, FiBell, FiBookmark,
-  FiUser, FiHelpCircle, FiSettings, FiLogOut, FiX
+  FiUser, FiHelpCircle, FiSettings, FiLogOut, FiX, FiInfo, FiMail
 } from 'react-icons/fi';
 
 const overlayVariants = {
@@ -78,6 +78,8 @@ export default function SidebarNav({ isOpen, onClose }) {
   ];
 
   const supportItems = [
+    { to: '/about',          icon: FiInfo,       label: 'About Us' },
+    { to: '/contact-us',     icon: FiMail,       label: 'Contact Us' },
     { to: '/help-support',   icon: FiHelpCircle, label: 'Help & Support' },
     { to: '/settings',       icon: FiSettings,   label: 'Settings' },
   ];

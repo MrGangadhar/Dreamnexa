@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiChevronDown, FiChevronUp, FiMail, FiBook, FiAward, FiShield } from 'react-icons/fi';
+import { useSEO } from '../hooks/useSEO';
 
 const FAQ_SECTIONS = [
   {
@@ -145,6 +146,12 @@ function AccordionItem({ q, a }) {
 }
 
 export default function HelpSupport() {
+  useSEO({
+    title: 'Help & Support FAQ — DreamNexa',
+    description: 'Frequently asked questions about DreamNexa accounts, quiz contests, leaderboard points, mock tests, and platform support.',
+    canonical: 'https://dreamnexa.in/help-support',
+  });
+
   return (
     <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
       {/* Hero */}

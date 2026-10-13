@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { FiMail, FiUser, FiMessageSquare, FiSend, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import client from '../api/client';
+import { useSEO } from '../hooks/useSEO';
 
 const SUBJECT_OPTIONS = [
   'General Inquiry',
@@ -17,6 +18,11 @@ const SUBJECT_OPTIONS = [
 ];
 
 export default function ContactUs() {
+  useSEO({
+    title: 'Contact Us — DreamNexa Support & Helpdesk',
+    description: 'Get in touch with the DreamNexa support team. Contact us for questions, content corrections, or technical assistance at support@dreamnexa.in.',
+    canonical: 'https://dreamnexa.in/contact-us',
+  });
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);

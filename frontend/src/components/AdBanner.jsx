@@ -78,8 +78,8 @@ const INLINES = [
   },
   {
     gradient: 'linear-gradient(135deg,#052e16 0%,#14532d 50%,#166534 100%)',
-    icon: '💰',
-    title: 'Refer & Earn ₹100 Per Friend',
+    icon: '🎁',
+    title: 'Refer & Earn 100 Bonus Points',
     sub: 'Invite classmates to DreamNexa and earn bonus points instantly.',
     cta: '🎁 Invite Friends',
   },

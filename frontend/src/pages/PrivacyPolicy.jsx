@@ -3,10 +3,12 @@
  * An educational / quiz contest platform.
  */
 
-const LAST_UPDATED = 'August 14, 2025';
+import { useSEO } from '../hooks/useSEO';
+
+const LAST_UPDATED = 'October 13, 2026';
 const COMPANY_NAME = 'DreamNexa';
 const PLATFORM_NAME = 'DreamNexa';
-const SUPPORT_EMAIL = 'support@dreamnexa.com';
+const SUPPORT_EMAIL = 'support@dreamnexa.in';
 
 const Section = ({ id, title, children }) => (
   <section id={id} style={{ marginBottom: 36 }}>
@@ -43,6 +45,12 @@ const TOC_ITEMS = [
 ];
 
 export default function PrivacyPolicy() {
+  useSEO({
+    title: 'Privacy Policy — DreamNexa',
+    description: 'Privacy Policy for DreamNexa. Learn how we handle student data, authentication, cookies, and advertising in compliance with data protection laws.',
+    canonical: 'https://dreamnexa.in/privacy-policy',
+  });
+
   return (
     <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
       {/* Hero */}
