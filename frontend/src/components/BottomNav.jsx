@@ -47,7 +47,7 @@ export default function BottomNav() {
   const { user } = useAuth();
   const location = useLocation();
 
-  if (location.pathname.startsWith('/admin')) return null;
+  if (location.pathname.startsWith('/admin') || location.pathname.includes('/play')) return null;
 
   const visibleTabs = tabs.filter(t => !t.authRequired || user);
 

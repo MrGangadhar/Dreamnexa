@@ -5,9 +5,11 @@ import { useSEO } from '../hooks/useSEO';
 const RANK_ICONS = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 export default function Leaderboard() {
+  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
   useSEO({
-    title: 'Top Quiz Champions & National Leaderboard | DreamNexa',
-    description: 'Check out the top performers and campus champions on the DreamNexa leaderboard. Compete in daily quizzes and live contests to earn rank points.',
+    title: `Top 10 Champions (${currentMonth}) | DreamNexa Leaderboard`,
+    description: `Top 10 quiz champions and performers on DreamNexa for ${currentMonth}. Compete in daily quizzes and live campus contests to earn leaderboard rank points.`,
     canonical: 'https://dreamnexa.in/leaderboard',
   });
   const [rows, setRows] = useState([]);
@@ -15,7 +17,10 @@ export default function Leaderboard() {
 
   useEffect(() => {
     client.get('/contests/leaderboard')
-      .then(({ data }) => setRows(data))
+      .then(({ data }) => {
+        const list = Array.isArray(data) ? data : [];
+        setRows(list.slice(0, 10));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -27,7 +32,7 @@ export default function Leaderboard() {
   if (top3[0]) podium.push(top3[0]); // Rank 1
   if (top3[2]) podium.push(top3[2]); // Rank 3
 
-  const remaining = rows.slice(3);
+  const remaining = rows.slice(3, 10);
 
   return (
     <div style={{ background: '#f5f6fa', minHeight: '100vh', paddingTop: 'calc(var(--nav-height))', paddingBottom: 'calc(var(--bottom-nav-h) + 24px)' }}>
@@ -42,9 +47,18 @@ export default function Leaderboard() {
       }}>
         <div style={{ position:'absolute', top:-40, right:-40, width:150, height:150, borderRadius:'50%', background:'rgba(255,255,255,0.05)', pointerEvents:'none' }} />
         <div className="container">
-          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: 0 }}>Global Leaderboard</h1>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'rgba(255,255,255,0.15)', borderRadius: 20,
+            padding: '4px 12px', fontSize: 11, fontWeight: 700,
+            color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em',
+            marginBottom: 8,
+          }}>
+            🗓️ Current Month: {currentMonth}
+          </div>
+          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: 0 }}>Top 10 Champions</h1>
           <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, marginTop: 4 }}>
-            Top players ranked by total points earned
+            Highest points earned in {currentMonth}
           </p>
         </div>
       </div>
@@ -197,7 +211,7 @@ export default function Leaderboard() {
                   color: '#9ca3af',
                   textAlign: 'center',
                 }}>
-                  #{r.global_rank}
+                  #{r.global_rank || (i + 4)}
                 </div>
 
                 {/* Avatar */}

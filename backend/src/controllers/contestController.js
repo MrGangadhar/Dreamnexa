@@ -107,19 +107,37 @@ async function listMyContests(req, res, next) {
 
 async function getLeaderboard(req, res, next) {
   try {
+    // Current month top 10 ranks
+    // Computes points earned in current month from points_transactions, falling back to profile points
     const result = await query(
-      `SELECT user_id, full_name, username, college, total_points, contests_won, total_contests, global_rank
-       FROM global_leaderboard
-       ORDER BY global_rank ASC
-       LIMIT 100`
+      `SELECT 
+         u.id AS user_id,
+         p.full_name,
+         u.username,
+         p.college,
+         COALESCE(monthly.month_pts, p.total_points) AS total_points,
+         p.contests_won,
+         p.total_contests,
+         ROW_NUMBER() OVER (ORDER BY COALESCE(monthly.month_pts, p.total_points) DESC, p.contests_won DESC) AS global_rank
+       FROM users u
+       JOIN profiles p ON p.user_id = u.id
+       LEFT JOIN (
+         SELECT user_id, SUM(amount) AS month_pts
+         FROM points_transactions
+         WHERE amount > 0 AND created_at >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01 00:00:00')
+         GROUP BY user_id
+       ) monthly ON monthly.user_id = u.id
+       WHERE u.status = 'active' AND u.role = 'student'
+       ORDER BY total_points DESC, p.contests_won DESC
+       LIMIT 10`
     );
     if (!result.rows.length && shouldUseMockData()) {
-      return res.json(demoLeaderboard);
+      return res.json(demoLeaderboard.slice(0, 10));
     }
-    res.json(result.rows);
+    res.json(result.rows.slice(0, 10));
   } catch (err) {
     if (shouldUseMockData(err)) {
-      return res.json(demoLeaderboard);
+      return res.json(demoLeaderboard.slice(0, 10));
     }
     next(err);
   }

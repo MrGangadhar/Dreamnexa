@@ -63,6 +63,14 @@ export default function QuizPlay() {
   const hiddenVideoRef = useRef(null);
   const faceCheckIntervalRef = useRef(null);
 
+  // STRICT REQUIREMENT: Suppress all ads on the entire screen during test time
+  useEffect(() => {
+    document.body.classList.add('test-mode-no-ads');
+    return () => {
+      document.body.classList.remove('test-mode-no-ads');
+    };
+  }, []);
+
   const proctoringEnabled = !!data?.quiz?.proctoringEnabled;
   const proctoring = useProctoring({ contestId, enabled: proctoringEnabled && proctoringReady });
 

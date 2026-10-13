@@ -33,7 +33,7 @@ export default function Navbar() {
   // public site navbar (with student-facing links like Contests/News/
   // Dashboard and the points badge) was rendering on top of it regardless,
   // which is what made every admin screenshot show both navs stacked.
-  if (location.pathname.startsWith('/admin')) return null;
+  if (location.pathname.startsWith('/admin') || location.pathname.includes('/play')) return null;
 
   return (
     <>

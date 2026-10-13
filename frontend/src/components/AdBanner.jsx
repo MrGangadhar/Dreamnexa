@@ -28,6 +28,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import '../styles/ads.css';
 
 /* ── AdSense config (blank until you're approved — see .env.example) ────── */
@@ -142,6 +143,16 @@ function GoogleAdSlot({ position }) {
 /* ── Component ───────────────────────────────────────────────────────────── */
 export default function AdBanner({ position = 'inline', variant = 0, dismissible = true }) {
   const [dismissed, setDismissed] = useState(false);
+  const location = useLocation();
+
+  // STRICT REQUIREMENT: Zero ads during test time / quiz play screens
+  if (
+    location.pathname.includes('/play') ||
+    location.pathname.includes('/test') ||
+    (typeof document !== 'undefined' && document.body.classList.contains('test-mode-no-ads'))
+  ) {
+    return null;
+  }
 
   if (dismissed) return null;
 

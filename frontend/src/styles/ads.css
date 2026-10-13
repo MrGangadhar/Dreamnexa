@@ -290,3 +290,18 @@
 .ad-banner-google-inline {
   min-height: 90px;
 }
+
+/* ── Strict Zero-Ads Rule During Test / Quiz Taking ─────────────────────── */
+body.test-mode-no-ads .ad-banner-wrap,
+body.test-mode-no-ads .adsbygoogle,
+body.test-mode-no-ads [id^="google_ads"],
+body.test-mode-no-ads [id^="aswift"],
+body.test-mode-no-ads iframe[src*="googlesyndication"],
+body.test-mode-no-ads .google-auto-placed {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  pointer-events: none !important;
+}
+
