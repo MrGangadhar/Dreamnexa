@@ -161,7 +161,7 @@ export default function EditorialPolicy() {
             marginTop: 16,
           }}>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>DreamNexa Editorial Team</div>
-            <div>Email: <a href="mailto:editorial@dreamnexa.in" style={{ color: 'var(--accent)' }}>editorial@dreamnexa.in</a></div>
+            <div>Email: <a href="mailto:meetmrgangadhar@gmail.com" style={{ color: 'var(--accent)' }}>meetmrgangadhar@gmail.com</a></div>
             <div style={{ marginTop: 8 }}>
               Or use our <Link to="/contact-us" style={{ color: 'var(--accent)' }}>Contact Form</Link> with subject &ldquo;Content Correction&rdquo;.
             </div>

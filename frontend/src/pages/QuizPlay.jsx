@@ -14,7 +14,7 @@ import client from '../api/client';
 import { useProctoring } from '../hooks/useProctoring';
 import ProctoringGate from '../components/proctoring/ProctoringGate';
 import ProctoringWarningBanner from '../components/proctoring/ProctoringWarningBanner';
-import { detectFaceFrame, areFaceModelsLoaded } from '../utils/faceDetection';
+import { detectFaceFrame, areFaceModelsLoaded, loadFaceModels } from '../utils/faceDetection';
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 function getStorageKey(contestId) {
@@ -148,17 +148,27 @@ export default function QuizPlay() {
 
     proctoring.startVoiceMonitoring?.(stream);
 
-    if (areFaceModelsLoaded()) {
+    const startFaceTracking = () => {
+      if (hiddenVideoRef.current) return;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
       video.playsInline = true;
       video.play().catch(() => {});
       hiddenVideoRef.current = video;
+      if (faceCheckIntervalRef.current) clearInterval(faceCheckIntervalRef.current);
       faceCheckIntervalRef.current = setInterval(async () => {
         const res = await detectFaceFrame(video);
         proctoring.handleFaceFrameResult?.(res);
       }, 4000);
+    };
+
+    if (areFaceModelsLoaded()) {
+      startFaceTracking();
+    } else {
+      loadFaceModels().then((loaded) => {
+        if (loaded) startFaceTracking();
+      });
     }
   }, [proctoring]);
 

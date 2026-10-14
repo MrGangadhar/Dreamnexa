@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
 
 const LAST_UPDATED = 'October 13, 2026';
-const SUPPORT_EMAIL = 'support@dreamnexa.in';
+const SUPPORT_EMAIL = 'meetmrgangadhar@gmail.com';
 
 const Section = ({ id, title, children }) => (
   <section id={id} style={{ marginBottom: 32 }}>

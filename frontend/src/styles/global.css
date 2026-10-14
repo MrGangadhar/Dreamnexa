@@ -328,3 +328,65 @@ label {
   .container { padding: 0 12px; }
   .table th, .table td { padding: 10px 8px; font-size: 13px; }
 }
+
+/* ── Platform Stats Grid & Cards (Landing Page) ── */
+.landing-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.landing-stat-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  cursor: default;
+}
+.landing-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.14), 0 10px 12px -5px rgba(0, 0, 0, 0.05);
+}
+.landing-stat-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.landing-stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+.landing-stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* On mobile screens: show in small top two and below two (2x2 grid) */
+@media (max-width: 768px) {
+  .landing-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  .landing-stat-card {
+    border-radius: 14px;
+    padding: 14px 10px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  .landing-stat-icon {
+    font-size: 22px !important;
+    margin-bottom: 4px !important;
+  }
+  .landing-stat-value {
+    font-size: 22px !important;
+    margin-bottom: 3px !important;
+  }
+  .landing-stat-label {
+    font-size: 11px !important;
+    line-height: 1.3;
+  }
+}

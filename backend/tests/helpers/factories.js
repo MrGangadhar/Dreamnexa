@@ -45,10 +45,9 @@ async function registerUser(request, app, overrides = {}) {
   return { ...res.body, payload };
 }
 
-/** Directly promotes a user to admin via the DB (no HTTP endpoint exists for this — by design). */
-function promoteToAdmin(userId) {
-  const db = getDb();
-  db.prepare(`UPDATE users SET role = 'admin' WHERE id = ?`).run(userId);
+async function promoteToAdmin(userId) {
+  const { query } = require('../../src/db/pool');
+  await query(`UPDATE users SET role = 'admin' WHERE id = $1`, [userId]);
 }
 
 module.exports = { getApp, getDb, uniqueSuffix, buildUserPayload, registerUser, promoteToAdmin };

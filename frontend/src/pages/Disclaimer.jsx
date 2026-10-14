@@ -189,7 +189,7 @@ export default function Disclaimer() {
             marginTop: 16,
           }}>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>DreamNexa</div>
-            <div>Email: <a href="mailto:support@dreamnexa.in" style={{ color: 'var(--accent)' }}>support@dreamnexa.in</a></div>
+            <div>Email: <a href="mailto:meetmrgangadhar@gmail.com" style={{ color: 'var(--accent)' }}>meetmrgangadhar@gmail.com</a></div>
             <div style={{ marginTop: 8 }}>
               Or use our <Link to="/contact-us" style={{ color: 'var(--accent)' }}>Contact Form</Link>.
             </div>

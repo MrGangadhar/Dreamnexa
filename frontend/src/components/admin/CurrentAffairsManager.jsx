@@ -46,13 +46,10 @@ export default function CurrentAffairsManager() {
     is_featured: 0
   });
 
-  const getToken = () => localStorage.getItem('token') || '';
-
   const loadArticles = async () => {
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await adminFetchCurrentAffairs(token, {
+      const res = await adminFetchCurrentAffairs({
         search,
         category: categoryFilter
       });
@@ -133,12 +130,11 @@ export default function CurrentAffairsManager() {
     };
 
     try {
-      const token = getToken();
       let res;
       if (editingArticle) {
-        res = await adminUpdateCurrentAffair(token, editingArticle.id, payload);
+        res = await adminUpdateCurrentAffair(editingArticle.id, payload);
       } else {
-        res = await adminCreateCurrentAffair(token, payload);
+        res = await adminCreateCurrentAffair(payload);
       }
 
       if (res && res.success) {
@@ -157,8 +153,7 @@ export default function CurrentAffairsManager() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this article?')) return;
     try {
-      const token = getToken();
-      const res = await adminDeleteCurrentAffair(token, id);
+      const res = await adminDeleteCurrentAffair(id);
       if (res && res.success) {
         toast.success('Article deleted');
         loadArticles();

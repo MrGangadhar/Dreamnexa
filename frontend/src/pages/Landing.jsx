@@ -148,46 +148,21 @@ export default function Landing() {
         zIndex: 10,
       }}>
         <div className="container">
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 18,
-          }}>
+          <div className="landing-stats-grid">
             {PLATFORM_STATS.map(({ value, label, icon, gradient }) => (
-              <div
-                key={label}
-                style={{
-                  background: 'var(--bg-card)',
-                  borderRadius: 16,
-                  padding: '24px 20px',
-                  textAlign: 'center',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
-                  border: '1px solid var(--border)',
-                  transition: 'transform 0.22s ease, box-shadow 0.22s ease',
-                  cursor: 'default',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 20px 35px -8px rgba(0, 0, 0, 0.14), 0 10px 12px -5px rgba(0, 0, 0, 0.05)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)';
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
-                <div style={{
-                  fontSize: 32,
-                  fontWeight: 900,
-                  background: gradient,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  letterSpacing: '-0.02em',
-                  marginBottom: 6,
-                }}>
+              <div key={label} className="landing-stat-card">
+                <div className="landing-stat-icon">{icon}</div>
+                <div
+                  className="landing-stat-value"
+                  style={{
+                    background: gradient,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
                   {value}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <div className="landing-stat-label">
                   {label}
                 </div>
               </div>

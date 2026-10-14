@@ -8,7 +8,7 @@ import { useSEO } from '../hooks/useSEO';
 const LAST_UPDATED = 'October 13, 2026';
 const COMPANY_NAME = 'DreamNexa';
 const PLATFORM_NAME = 'DreamNexa';
-const SUPPORT_EMAIL = 'support@dreamnexa.in';
+const SUPPORT_EMAIL = 'meetmrgangadhar@gmail.com';
 
 const Section = ({ id, title, children }) => (
   <section id={id} style={{ marginBottom: 36 }}>

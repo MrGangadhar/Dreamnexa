@@ -29,23 +29,38 @@ let modelsLoaded = false;
 let loadingPromise = null;
 
 export function loadFaceModels(modelUrl) {
-  const url = modelUrl || import.meta.env?.VITE_FACE_MODELS_URL || DEFAULT_MODEL_CDN;
   if (modelsLoaded) return Promise.resolve(true);
   if (loadingPromise) return loadingPromise;
 
-  loadingPromise = Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(url),
-    faceapi.nets.faceLandmark68Net.loadFromUri(url),
-  ])
-    .then(() => {
+  const primaryUrl = modelUrl || import.meta.env?.VITE_FACE_MODELS_URL || '/models';
+
+  loadingPromise = (async () => {
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(primaryUrl),
+        faceapi.nets.faceLandmark68Net.loadFromUri(primaryUrl),
+      ]);
       modelsLoaded = true;
       return true;
-    })
-    .catch((err) => {
-      console.warn('[FaceDetection] Failed to load models from', url, err.message);
+    } catch (err) {
+      console.warn('[FaceDetection] Failed to load models from primary source:', primaryUrl, err.message);
+      if (primaryUrl !== DEFAULT_MODEL_CDN) {
+        try {
+          console.info('[FaceDetection] Attempting fallback to CDN:', DEFAULT_MODEL_CDN);
+          await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(DEFAULT_MODEL_CDN),
+            faceapi.nets.faceLandmark68Net.loadFromUri(DEFAULT_MODEL_CDN),
+          ]);
+          modelsLoaded = true;
+          return true;
+        } catch (cdnErr) {
+          console.warn('[FaceDetection] Fallback CDN also failed:', cdnErr.message);
+        }
+      }
       loadingPromise = null;
       return false;
-    });
+    }
+  })();
 
   return loadingPromise;
 }

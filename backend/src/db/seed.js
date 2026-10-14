@@ -231,24 +231,6 @@ async function seed() {
         content: 'In this video masterclass, we break down key strategies adopted by top rankers preparing for UPSC, SSC, Banking, and State PSC examinations. Key highlights include: 1. Speed vs Accuracy balance in timed tests, 2. Elimination techniques for multiple-choice questions, 3. Daily 15-minute GK revision routines, and 4. Analyzing performance analytics after every mock test session.',
         category: 'education', type: 'vlog', vlogUrl: 'https://www.youtube.com/watch?v=kqtD5dpn9C8', featured: 1,
       },
-      {
-        title: 'UPSC Civil Services 2026: Preliminary Examination Syllabus & Preparation Strategy',
-        description: 'A complete analysis of the General Studies Paper I and CSAT structure, recommended standard reference books, and monthly milestone targets for aspirants.',
-        content: 'The Union Public Service Commission (UPSC) Civil Services Examination demands disciplined conceptual clarity across Indian Polity, Modern History, Geography, Economics, and Environment. Candidates are advised to build daily newspaper reading habits, maintain topical notes, and attempt regular sectional quizzes to reinforce static and dynamic syllabus components.',
-        category: 'education', type: 'news', featured: 1,
-      },
-      {
-        title: 'SSC CGL 2026 Recruitment Drive: Tier-I & Tier-II Pattern Breakdown',
-        description: 'Staff Selection Commission announces upcoming schedule. Understand the exam pattern, section-wise weightage, and negative marking rules.',
-        content: 'The Staff Selection Commission Combined Graduate Level (SSC CGL) exam tests Quantitative Aptitude, Reasoning, English Comprehension, and General Awareness. Aspirants should prioritize high-scoring topics, memorize standard formulas, and practice timed computer-based mock tests regularly.',
-        category: 'jobs', type: 'news', featured: 0,
-      },
-      {
-        title: 'Monthly Current Affairs & GK Digest: Key National and Global Milestones',
-        description: 'Essential policy updates, science & technology breakthroughs, international summits, and economic indicators curated for exam revision.',
-        content: 'This monthly review compiles crucial developments across governance, environmental summits, bilateral agreements, defense exercises, and economic indices. Review each section carefully and test your retention with our daily current affairs quiz sprints.',
-        category: 'current-affairs', type: 'news', featured: 0,
-      },
     ];
 
     const articleIds = [];

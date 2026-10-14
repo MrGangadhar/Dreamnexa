@@ -62,8 +62,8 @@ export default function Footer() {
               Educational portal for Indian aspirants. Discover verified government job notifications, daily current affairs &amp; GK, and participate in competitive quiz challenges.
             </p>
             <div>
-              <a href="mailto:support@dreamnexa.in" className="footer-contact-link">
-                support@dreamnexa.in
+              <a href="mailto:meetmrgangadhar@gmail.com" className="footer-contact-link">
+                meetmrgangadhar@gmail.com
               </a>
             </div>
           </div>

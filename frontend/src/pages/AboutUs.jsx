@@ -200,7 +200,7 @@ export default function AboutUs() {
           <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 28 }}>
             Have a question, a correction request, or a suggestion? We would love to hear from you.
             Reach out through our contact form or email us at{' '}
-            <a href="mailto:support@dreamnexa.in" style={{ color: 'var(--accent)' }}>support@dreamnexa.in</a>.
+            <a href="mailto:meetmrgangadhar@gmail.com" style={{ color: 'var(--accent)' }}>meetmrgangadhar@gmail.com</a>.
           </p>
           <Link to="/contact-us" className="btn btn-primary btn-lg">
             Contact Us

@@ -20,7 +20,7 @@ const SUBJECT_OPTIONS = [
 export default function ContactUs() {
   useSEO({
     title: 'Contact Us — DreamNexa Support & Helpdesk',
-    description: 'Get in touch with the DreamNexa support team. Contact us for questions, content corrections, or technical assistance at support@dreamnexa.in.',
+    description: 'Get in touch with the DreamNexa support team. Contact us for questions, content corrections, or technical assistance at meetmrgangadhar@gmail.com.',
     canonical: 'https://dreamnexa.in/contact-us',
   });
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -117,9 +117,9 @@ export default function ContactUs() {
                   </div>
                   <div>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 2 }}>Support Email</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                      support@dreamnexa.com
-                    </div>
+                    <a href="mailto:meetmrgangadhar@gmail.com" style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+                      meetmrgangadhar@gmail.com
+                    </a>
                   </div>
                 </div>
 
