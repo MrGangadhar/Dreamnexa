@@ -4,6 +4,7 @@ import {
   FiAward, FiTrendingUp, FiLayers, FiCheckCircle, FiShare2, FiBookmark, FiX, FiAlertCircle, FiRefreshCw, FiGlobe
 } from 'react-icons/fi';
 import { fetchCurrentAffairs } from '../api/currentAffairsApi';
+import { FALLBACK_CURRENT_AFFAIRS } from '../data/currentAffairsData';
 import '../styles/currentAffairs.css';
 import { useSEO } from '../hooks/useSEO';
 
@@ -41,6 +42,20 @@ export default function CurrentAffairs() {
     }
   });
 
+  const getFilteredFallback = () => {
+    return FALLBACK_CURRENT_AFFAIRS.filter((item) => {
+      if (selectedCategory && selectedCategory !== 'All' && item.category !== selectedCategory) return false;
+      if (selectedExamTag && (!item.exam_tags || !item.exam_tags.includes(selectedExamTag))) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const inTitle = (item.title || '').toLowerCase().includes(q);
+        const inSummary = (item.summary || '').toLowerCase().includes(q);
+        if (!inTitle && !inSummary) return false;
+      }
+      return true;
+    });
+  };
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -50,14 +65,16 @@ export default function CurrentAffairs() {
         exam_tag: selectedExamTag,
         search: searchQuery
       });
-      if (res && res.success) {
-        setArticles(res.data || []);
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setArticles(res.data);
       } else {
-        setError((res && res.message) || 'Failed to load current affairs.');
+        const fallback = getFilteredFallback();
+        setArticles(fallback);
       }
     } catch (err) {
-      console.error(err);
-      setError('Could not connect to current affairs service.');
+      console.warn('Current affairs API load fallback:', err);
+      const fallback = getFilteredFallback();
+      setArticles(fallback);
     } finally {
       setLoading(false);
     }
