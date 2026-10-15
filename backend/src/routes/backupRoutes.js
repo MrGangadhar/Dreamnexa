@@ -10,5 +10,6 @@ router.use(requireAuth, requireAdmin);
 
 router.get('/excel', backupController.downloadExcelBackup);
 router.post('/excel/save', backupController.saveExcelBackup);
+router.post('/sync-sheets', backupController.syncGoogleSheets);
 
 module.exports = router;

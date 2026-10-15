@@ -215,6 +215,34 @@ function Sparkline({ data=[], color='#7c3aed', height=48, width=180 }) {
 export default function Admin() {
   const [tab, setTab] = useState('overview');
   const [sideOpen, setSideOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true);
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleDownloadExcel = async () => {
+    if (exportingExcel) return;
+    setExportingExcel(true);
+    const toastId = toast.loading('Generating live Excel workbook with all sheets...');
+    try {
+      const res = await client.get('/admin/backup/excel', { responseType: 'blob' });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.download = `dreamnexa-live-data-${dateStr}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel workbook downloaded successfully!', { id: toastId });
+    } catch (err) {
+      console.error('Excel download failed:', err);
+      toast.error(err.response?.data?.error || 'Failed to generate Excel backup.', { id: toastId });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   useEffect(() => {
     const onResize = () => { if (window.innerWidth <= 900) setSideOpen(false); };
@@ -303,19 +331,41 @@ export default function Admin() {
             <div style={{fontWeight:800,fontSize:16,color:C.primary}}>{NAV.find(n=>n.key===tab)?.label}</div>
             <div style={{fontSize:11,color:C.muted}}>DreamNexa Admin Control Room</div>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button
+              onClick={handleDownloadExcel}
+              disabled={exportingExcel}
+              style={{
+                padding:'6px 13px',
+                borderRadius:8,
+                border:'1px solid #16a34a',
+                background:'#16a34a15',
+                color:'#16a34a',
+                fontWeight:700,
+                fontSize:12,
+                cursor:exportingExcel?'not-allowed':'pointer',
+                display:'flex',
+                alignItems:'center',
+                gap:6,
+                transition:'all .15s',
+              }}
+              title="Download full multi-sheet Excel file of all users, quizzes, attempts and contests"
+            >
+              <span>📊</span>
+              <span>{exportingExcel ? 'Exporting…' : 'Export to Excel'}</span>
+            </button>
             <div style={{padding:'6px 14px',borderRadius:20,background:'linear-gradient(135deg,rgba(124,58,237,0.1),rgba(37,99,235,0.1))',color:C.purple,fontWeight:700,fontSize:12,border:`1px solid rgba(124,58,237,0.2)`}}>⚡ Admin</div>
           </div>
         </header>
 
         {/* Page body */}
         <main style={{flex:1,padding:'20px 16px',minWidth:0,overflowX:'hidden'}}>
-          {tab==='overview'  && <Overview onNavigate={setTab} />}
+          {tab==='overview'  && <Overview onNavigate={setTab} onDownloadExcel={handleDownloadExcel} exportingExcel={exportingExcel} />}
           {tab==='users'     && <UsersTab  />}
           {tab==='coupons'   && <CouponsTab/>}
           {tab==='payments'  && <PaymentsTab/>}
           {tab==='templates' && <Templates />}
-          {tab==='schedule'  && <ContestScheduleTab />}
+          {tab==='schedule'  && <ContestScheduleTab onDownloadExcel={handleDownloadExcel} exportingExcel={exportingExcel} />}
           {tab==='quizzes'   && <Quizzes   />}
           {tab==='proctoring' && <ProctoringTab />}
           {tab==='govt_jobs'       && <GovtJobsManager />}
@@ -331,10 +381,25 @@ export default function Admin() {
 /* ─────────────────────────────────────────────────────────────────────────────
    OVERVIEW
    ─────────────────────────────────────────────────────────────────────────── */
-function Overview({ onNavigate }) {
+function Overview({ onNavigate, onDownloadExcel, exportingExcel }) {
   const [stats, setStats]     = useState(null);
   const [bulk, setBulk]       = useState({ amount:'', reason:'' });
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [syncingSheets, setSyncingSheets] = useState(false);
+
+  const handleSyncSheets = async () => {
+    if (syncingSheets) return;
+    setSyncingSheets(true);
+    const toastId = toast.loading('Exporting all website data to Google Sheets…');
+    try {
+      const { data } = await client.post('/admin/backup/sync-sheets');
+      toast.success(data.message || 'Synced to Google Sheets successfully!', { id: toastId });
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to sync to Google Sheets.', { id: toastId });
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
 
   useEffect(()=>{
     client.get('/admin/dashboard').then(({data})=>setStats(data)).catch(()=>{});
@@ -490,6 +555,83 @@ function Overview({ onNavigate }) {
           </Card>
         </div>
       </div>
+
+      {/* Excel Live Sync Banner */}
+      <Card style={{
+        background: 'linear-gradient(135deg, rgba(22,163,74,0.06), rgba(37,99,235,0.06))',
+        border: '1px solid rgba(22,163,74,0.25)',
+        padding: 20,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 20 }}>📊</span>
+              <span style={{ fontWeight: 800, fontSize: 16, color: C.primary }}>Automated Excel & Live Data Sync</span>
+              <span style={{
+                background: '#16a34a18', color: '#16a34a', fontSize: 11, fontWeight: 700,
+                padding: '2px 8px', borderRadius: 999
+              }}>
+                ● Auto-Sync Active
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: C.secondary, margin: 0, lineHeight: 1.5 }}>
+              All student activity via your <strong>Vercel Link</strong> (registrations, quiz submissions, contest scores & leaderboards) automatically updates in the central database and Excel generator in real-time.
+            </p>
+            <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap', fontSize: 12, color: C.muted }}>
+              <span>✓ 10 Styled Sheets (Users, Quizzes, Attempts, Leaderboards)</span>
+              <span>✓ Auto-regenerated on every submission</span>
+              <span>✓ Compatible with Excel Desktop & Google Sheets</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={handleSyncSheets}
+              disabled={syncingSheets}
+              style={{
+                padding: '10px 18px',
+                borderRadius: 8,
+                border: '1px solid rgba(37,99,235,0.3)',
+                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: syncingSheets ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+                transition: 'all .15s',
+              }}
+              title="Sync all Users, Quizzes, Attempts, Leaderboards and Govt Jobs to your connected Google Sheet"
+            >
+              <span>🔄</span>
+              <span>{syncingSheets ? 'Syncing to Sheets…' : 'Sync All to Google Sheet'}</span>
+            </button>
+            <button
+              onClick={onDownloadExcel}
+              disabled={exportingExcel}
+              style={{
+                padding: '10px 18px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: exportingExcel ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 2px 8px rgba(22,163,74,0.3)',
+                transition: 'all .15s',
+              }}
+            >
+              <span>📥</span>
+              <span>{exportingExcel ? 'Generating Excel…' : 'Download Full Excel (.xlsx)'}</span>
+            </button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -2017,7 +2159,7 @@ function NewsManager() {
 /* ─────────────────────────────────────────────────────────────────────────────
    CONTEST SCHEDULE TAB — Admin can set start/end time and status per contest
    ─────────────────────────────────────────────────────────────────────────── */
-function ContestScheduleTab() {
+function ContestScheduleTab({ onDownloadExcel, exportingExcel }) {
   const [contests, setContests] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -2094,12 +2236,36 @@ function ContestScheduleTab() {
             Set start/end date & time for any contest, and change its status.
           </div>
         </div>
-        <button
-          onClick={load}
-          style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.secondary }}
-        >
-          ↻ Refresh
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {onDownloadExcel && (
+            <button
+              onClick={onDownloadExcel}
+              disabled={exportingExcel}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: '1px solid #16a34a',
+                background: '#16a34a12',
+                color: '#16a34a',
+                cursor: exportingExcel ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              <span>📥</span>
+              <span>{exportingExcel ? 'Exporting…' : 'Export to Excel'}</span>
+            </button>
+          )}
+          <button
+            onClick={load}
+            style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.secondary }}
+          >
+            ↻ Refresh
+          </button>
+        </div>
       </div>
 
       {/* Search */}

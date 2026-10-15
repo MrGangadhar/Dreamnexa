@@ -60,4 +60,22 @@ async function saveExcelBackup(req, res, next) {
   }
 }
 
-module.exports = { downloadExcelBackup, saveExcelBackup };
+const { syncAllDataToGoogleSheets } = require('../utils/googleSheetsSync');
+
+/**
+ * POST /api/admin/backup/sync-sheets
+ * Pushes full database backup to configured Google Sheet webhook.
+ */
+async function syncGoogleSheets(req, res, next) {
+  try {
+    const result = await syncAllDataToGoogleSheets(req.body?.webhookUrl);
+    res.json({
+      message: 'Website data successfully synced to Google Sheets!',
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { downloadExcelBackup, saveExcelBackup, syncGoogleSheets };

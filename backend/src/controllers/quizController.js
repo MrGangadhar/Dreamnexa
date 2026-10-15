@@ -1,6 +1,8 @@
 const { query, withTransaction } = require('../db/pool');
 const { evaluateContest } = require('../utils/resultsEngine');
 const { finalDecision } = require('../utils/proctoringEngine');
+const { triggerAutoBackup } = require('../utils/autoBackup');
+const { notifyQuizSubmission } = require('../utils/webhookSync');
 
 // Fetch quiz questions WITHOUT correct answers (for taking the quiz)
 async function getQuizForAttempt(req, res, next) {
@@ -221,10 +223,38 @@ async function submitAttempt(req, res, next) {
         skippedCount,
         passed,
         remarks,
+        timeTakenSeconds,
         evaluated: !!evaluated,
         proctoring,
       };
     });
+
+    // Trigger automatic Excel update & live sync
+    triggerAutoBackup('Quiz Attempt Submitted');
+
+    // Async webhook notification to live Excel / Google Sheet
+    (async () => {
+      try {
+        const userRow = (await query(`SELECT u.username, u.email, p.full_name, p.college FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = $1`, [req.user.id])).rows[0];
+        const contestRow = (await query(`SELECT c.name, q.title FROM contests c LEFT JOIN quizzes q ON q.id = c.quiz_id WHERE c.id = $1`, [contestId])).rows[0];
+
+        notifyQuizSubmission({
+          studentName: userRow?.full_name || userRow?.username || 'Student',
+          email: userRow?.email || '',
+          college: userRow?.college || '',
+          contestName: contestRow?.name || 'Contest',
+          quizTitle: contestRow?.title || 'Quiz',
+          score: result.score,
+          correctCount: result.correctCount,
+          wrongCount: result.wrongCount,
+          passed: result.passed,
+          timeTakenSeconds: result.timeTakenSeconds,
+          submittedAt: new Date().toISOString(),
+        });
+      } catch (syncErr) {
+        console.warn('[WebhookSync] Non-blocking sync error:', syncErr.message);
+      }
+    })();
 
     res.json({ message: 'Quiz submitted.', ...result });
   } catch (err) {
