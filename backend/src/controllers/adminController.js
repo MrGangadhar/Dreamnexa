@@ -16,6 +16,7 @@ async function createTemplate(req, res, next) {
     const {
       name, description, quizId, entryPointsCost = 0, maxParticipants,
       durationMinutes = 15, rewardStructure = [], autoRegenerate = true,
+      startsAt, endsAt,
     } = req.body;
 
     if (!name || !quizId || !maxParticipants) {
@@ -34,6 +35,14 @@ async function createTemplate(req, res, next) {
       );
       const template = tRes.rows[0];
       const firstContest = await contestEngine.ensureOpenContestExists(client, template.id);
+      if (firstContest && (startsAt || endsAt)) {
+        await client.query(
+          `UPDATE contests SET starts_at = $1, ends_at = $2 WHERE id = $3`,
+          [startsAt || null, endsAt || null, firstContest.id]
+        );
+        firstContest.starts_at = startsAt || null;
+        firstContest.ends_at = endsAt || null;
+      }
       await logAction(client, req.user.id, 'create_template', 'contest_template', template.id, { name });
       return { template, firstContest };
     });
@@ -62,10 +71,8 @@ async function listTemplates(req, res, next) {
 async function updateTemplate(req, res, next) {
   try {
     const { id } = req.params;
-    const { isActive, autoRegenerate, entryPointsCost, rewardStructure, name, description } = req.body;
+    const { isActive, autoRegenerate, entryPointsCost, rewardStructure, name, description, quizId, maxParticipants, startsAt, endsAt } = req.body;
 
-    // Build SET clause dynamically — COALESCE(null, boolCol) fails in MySQL
-    // prepared statements for TINYINT columns.
     const sets = [];
     const params = [];
 
@@ -93,6 +100,14 @@ async function updateTemplate(req, res, next) {
       params.push(description);
       sets.push(`description = $${params.length}`);
     }
+    if (quizId !== undefined) {
+      params.push(quizId);
+      sets.push(`quiz_id = $${params.length}`);
+    }
+    if (maxParticipants !== undefined) {
+      params.push(Number(maxParticipants));
+      sets.push(`max_participants = $${params.length}`);
+    }
 
     if (sets.length === 0) {
       const existing = await query(`SELECT * FROM contest_templates WHERE id = $1`, [id]);
@@ -106,7 +121,55 @@ async function updateTemplate(req, res, next) {
       params
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Template not found.' });
+
+    // If startsAt or endsAt were provided, update upcoming contests from this template
+    if (startsAt !== undefined || endsAt !== undefined) {
+      const timeSets = [];
+      const timeParams = [];
+      if (startsAt !== undefined) {
+        timeParams.push(startsAt || null);
+        timeSets.push(`starts_at = $${timeParams.length}`);
+      }
+      if (endsAt !== undefined) {
+        timeParams.push(endsAt || null);
+        timeSets.push(`ends_at = $${timeParams.length}`);
+      }
+      if (timeSets.length > 0) {
+        timeParams.push(id);
+        await query(`UPDATE contests SET ${timeSets.join(', ')} WHERE template_id = $${timeParams.length} AND status = 'upcoming'`, timeParams);
+      }
+    }
+
     res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteTemplate(req, res, next) {
+  try {
+    const { id } = req.params;
+    await withTransaction(async (client) => {
+      await client.query(`DELETE FROM contests WHERE template_id = $1`, [id]);
+      const result = await client.query(`DELETE FROM contest_templates WHERE id = $1 RETURNING *`, [id]);
+      if (!result.rows[0]) throw Object.assign(new Error('Template not found'), { status: 404 });
+      await logAction(client, req.user.id, 'delete_template', 'contest_template', id);
+    });
+    res.json({ message: 'Contest template deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteContest(req, res, next) {
+  try {
+    const { id } = req.params;
+    await withTransaction(async (client) => {
+      const result = await client.query(`DELETE FROM contests WHERE id = $1 RETURNING *`, [id]);
+      if (!result.rows[0]) throw Object.assign(new Error('Contest not found'), { status: 404 });
+      await logAction(client, req.user.id, 'delete_contest', 'contest', id);
+    });
+    res.json({ message: 'Contest deleted successfully.' });
   } catch (err) {
     next(err);
   }
@@ -192,6 +255,129 @@ async function updateQuiz(req, res, next) {
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Quiz not found.' });
     res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getQuizDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const quizRes = await query(`SELECT * FROM quizzes WHERE id = $1`, [id]);
+    if (!quizRes.rows[0]) return res.status(404).json({ error: 'Quiz not found.' });
+    const questionsRes = await query(
+      `SELECT * FROM questions WHERE quiz_id = $1 ORDER BY order_index ASC`,
+      [id]
+    );
+    res.json({ quiz: quizRes.rows[0], questions: questionsRes.rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function alterQuiz(req, res, next) {
+  try {
+    const { id } = req.params;
+    const {
+      title, description, instructions, durationMinutes,
+      negativeMarking, passingMarks, proctoringEnabled, isPublished, questions
+    } = req.body;
+
+    const result = await withTransaction(async (client) => {
+      const sets = [];
+      const params = [];
+
+      if (title !== undefined) {
+        params.push(title);
+        sets.push(`title = $${params.length}`);
+      }
+      if (description !== undefined) {
+        params.push(description);
+        sets.push(`description = $${params.length}`);
+      }
+      if (instructions !== undefined) {
+        params.push(instructions);
+        sets.push(`instructions = $${params.length}`);
+      }
+      if (durationMinutes !== undefined) {
+        params.push(Number(durationMinutes));
+        sets.push(`duration_minutes = $${params.length}`);
+      }
+      if (negativeMarking !== undefined) {
+        params.push(Number(negativeMarking));
+        sets.push(`negative_marking = $${params.length}`);
+      }
+      if (passingMarks !== undefined) {
+        params.push(Number(passingMarks));
+        sets.push(`passing_marks = $${params.length}`);
+      }
+      if (proctoringEnabled !== undefined) {
+        const val = (proctoringEnabled === true || proctoringEnabled === 'true' || proctoringEnabled === 1 || proctoringEnabled === '1') ? 1 : 0;
+        params.push(val);
+        sets.push(`proctoring_enabled = $${params.length}`);
+      }
+      if (isPublished !== undefined) {
+        const val = (isPublished === true || isPublished === 'true' || isPublished === 1 || isPublished === '1') ? 1 : 0;
+        params.push(val);
+        sets.push(`is_published = $${params.length}`);
+      }
+
+      if (sets.length > 0) {
+        params.push(id);
+        await client.query(`UPDATE quizzes SET ${sets.join(', ')} WHERE id = $${params.length}`, params);
+      }
+
+      if (Array.isArray(questions)) {
+        await client.query(`DELETE FROM questions WHERE quiz_id = $1`, [id]);
+        let order = 0;
+        for (const q of questions) {
+          order += 1;
+          await client.query(
+            `INSERT INTO questions
+              (quiz_id, question_text, question_type, options, correct_options, marks, negative_marks, difficulty, explanation, order_index)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [
+              id,
+              q.questionText || q.question_text,
+              q.questionType || q.question_type || 'mcq',
+              typeof q.options === 'string' ? q.options : JSON.stringify(q.options || []),
+              typeof q.correctOptions === 'string' ? q.correctOptions : typeof q.correct_options === 'string' ? q.correct_options : JSON.stringify(q.correctOptions || q.correct_options || []),
+              q.marks || 1,
+              q.negativeMarks ?? q.negative_marks ?? 0,
+              q.difficulty || 'medium',
+              q.explanation || null,
+              order
+            ]
+          );
+        }
+      }
+
+      await logAction(client, req.user.id, 'alter_quiz', 'quiz', id, { title });
+      const updated = await client.query(
+        `SELECT q.*, (SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS question_count FROM quizzes q WHERE q.id = $1`,
+        [id]
+      );
+      return updated.rows[0];
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteQuiz(req, res, next) {
+  try {
+    const { id } = req.params;
+    await withTransaction(async (client) => {
+      await client.query(`UPDATE contest_templates SET quiz_id = NULL WHERE quiz_id = $1`, [id]);
+      await client.query(`UPDATE contests SET quiz_id = NULL WHERE quiz_id = $1`, [id]);
+      await client.query(`DELETE FROM questions WHERE quiz_id = $1`, [id]);
+      const result = await client.query(`DELETE FROM quizzes WHERE id = $1 RETURNING *`, [id]);
+      if (!result.rows[0]) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+      await logAction(client, req.user.id, 'delete_quiz', 'quiz', id);
+    });
+    res.json({ message: 'Quiz deleted successfully.' });
   } catch (err) {
     next(err);
   }
@@ -834,8 +1020,8 @@ async function bulkCreditPoints(req, res, next) {
 }
 
 module.exports = {
-  createTemplate, listTemplates, updateTemplate,
-  createQuiz, listQuizzes, updateQuiz,
+  createTemplate, listTemplates, updateTemplate, deleteTemplate, deleteContest,
+  createQuiz, listQuizzes, updateQuiz, getQuizDetail, alterQuiz, deleteQuiz,
   listUsers, getUserDetails, getAttemptDetail, updateUserAccess, deleteUser,
   setUserStatus, adjustPoints, adjustUserWallet, bulkCreditPoints,
   listCoupons, createCoupon, updateCoupon, deleteCoupon, listCouponRedemptions,

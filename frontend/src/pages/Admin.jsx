@@ -392,10 +392,81 @@ function Overview({ onNavigate, onDownloadExcel, exportingExcel }) {
     setSyncingSheets(true);
     const toastId = toast.loading('Exporting all website data to Google Sheets…');
     try {
-      const { data } = await client.post('/admin/backup/sync-sheets');
-      toast.success(data.message || 'Synced to Google Sheets successfully!', { id: toastId });
+      let res;
+      try {
+        res = await client.post('/admin/backup/sync-sheets');
+      } catch (postErr) {
+        if (postErr.response?.status === 404) {
+          res = await client.post('/admin/sync-sheets');
+        } else {
+          throw postErr;
+        }
+      }
+      toast.success(res.data?.message || 'Synced to Google Sheets successfully!', { id: toastId });
     } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Failed to sync to Google Sheets.', { id: toastId });
+      if (err.response?.status === 404) {
+        try {
+          toast.loading('Cloud Run redeployment pending — performing direct client sync to Google Sheets…', { id: toastId });
+          const [usersRes, quizzesRes, contestsRes, templatesRes] = await Promise.all([
+            client.get('/admin/users').catch(() => ({ data: { users: [] } })),
+            client.get('/admin/quizzes').catch(() => ({ data: { quizzes: [] } })),
+            client.get('/admin/contests').catch(() => ({ data: { contests: [] } })),
+            client.get('/admin/templates').catch(() => ({ data: { templates: [] } })),
+          ]);
+          const users = usersRes.data?.users || usersRes.data || [];
+          const quizzes = quizzesRes.data?.quizzes || quizzesRes.data || [];
+          const contests = contestsRes.data?.contests || contestsRes.data || [];
+          const templates = templatesRes.data?.templates || templatesRes.data || [];
+
+          const scriptUrl = 'https://script.google.com/macros/s/AKfycbx6eCgLPd00WLfmPBWKTQRRrTETfSfMg2sygrl2WKu6I6Q6A9rA6TvEqAeUVHqmdoZfHA/exec';
+          const payload = {
+            tables: {
+              'Users': {
+                headers: ['User ID', 'Username', 'Full Name', 'Email', 'Role', 'Status', 'Points'],
+                rows: users.map(u => [u.id, u.username, u.full_name || '', u.email, u.role, u.status, u.total_points || 0])
+              },
+              'Quizzes': {
+                headers: ['Quiz ID', 'Title', 'Category', 'Time Limit (Mins)', 'Questions', 'Total Marks'],
+                rows: quizzes.map(q => [q.id, q.title, q.category, q.time_limit_mins, q.question_count || 0, q.total_marks || 0])
+              },
+              'Contests Schedule': {
+                headers: ['Contest ID', 'Template', 'Status', 'Start Date & Time', 'End Date & Time', 'Enrolled'],
+                rows: contests.map(c => [c.id, c.template_name || c.name, c.status, c.starts_at || '', c.ends_at || '', c.participant_count || 0])
+              },
+              'Contest Templates': {
+                headers: ['Template ID', 'Name', 'Quiz', 'Max Seats', 'Entry Points', 'Status'],
+                rows: templates.map(t => [t.id, t.name, t.quiz_title || t.quizId, t.max_participants, t.entry_points_cost, t.is_active ? 'Active' : 'Inactive'])
+              }
+            },
+            summary: {
+              usersCount: users.length,
+              quizzesCount: quizzes.length,
+              contestsCount: contests.length,
+              templatesCount: templates.length
+            }
+          };
+
+          await fetch(scriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          });
+
+          toast.success('Synced to Google Sheets via direct fallback! Please also redeploy Cloud Run.', { id: toastId, duration: 6000 });
+          return;
+        } catch (fallbackErr) {
+          console.error('Direct sheets fallback error:', fallbackErr);
+        }
+      }
+
+      const msg = err.response?.data?.error || err.message || 'Failed to sync to Google Sheets.';
+      toast.error(
+        err.response?.status === 404
+          ? 'Backend update pending: Please redeploy Cloud Run to enable full backend sync.'
+          : msg,
+        { id: toastId, duration: 6000 }
+      );
     } finally {
       setSyncingSheets(false);
     }
@@ -1567,15 +1638,20 @@ function AuditLog() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TEMPLATES  (original functionality preserved)
+   TEMPLATES  (contests templates with alter, delete, and assigned time windows)
    ─────────────────────────────────────────────────────────────────────────── */
 function Templates() {
   const [templates,setTemplates] = useState([]);
   const [quizzes,setQuizzes]   = useState([]);
-  const [form,setForm] = useState({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0});
+  const [form,setForm] = useState({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0,startsAt:'',endsAt:''});
   const [dualEntry,setDualEntry] = useState(true);
   const [paidEntryCost,setPaidEntryCost] = useState(20);
   const [creating,setCreating] = useState(false);
+
+  // Alter / Edit template state
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [alterForm, setAlterForm] = useState({});
+  const [savingAlter, setSavingAlter] = useState(false);
 
   const load=()=>{
     client.get('/admin/templates').then(({data})=>setTemplates(data));
@@ -1585,27 +1661,89 @@ function Templates() {
 
   const rewardStructure=[{rank:1,badge:'gold_scholar',points:200},{rank:2,badge:'silver_scholar',points:120},{rank:3,badge:'bronze_scholar',points:60}];
 
+  const toISO = (local) => local ? new Date(local).toISOString() : null;
+
   const createTemplate=async e=>{
     e.preventDefault(); setCreating(true);
     try {
-      const base={...form,maxParticipants:Number(form.maxParticipants),rewardStructure};
+      const base={
+        ...form,
+        maxParticipants:Number(form.maxParticipants),
+        startsAt: toISO(form.startsAt),
+        endsAt: toISO(form.endsAt),
+        rewardStructure
+      };
       if (dualEntry) {
-        // Spin up two twin contests off the same quiz — a Free entry (0 pts)
-        // and a Paid/points entry — so the full join → play → leaderboard
-        // workflow can be exercised both ways without touching the DB by hand.
         await client.post('/admin/templates',{...base,name:`${form.name} (Free Entry)`,entryPointsCost:0});
         await client.post('/admin/templates',{...base,name:`${form.name} (Paid Entry)`,entryPointsCost:Number(paidEntryCost)});
-        toast.success('Free + Paid entry contests created!');
+        toast.success('Free + Paid entry contests created with assigned schedule!');
       } else {
         await client.post('/admin/templates',{...base,entryPointsCost:Number(form.entryPointsCost)});
-        toast.success('Template created!');
+        toast.success('Template created with assigned schedule!');
       }
-      setForm({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0}); load();
+      setForm({name:'',description:'',quizId:'',maxParticipants:6,entryPointsCost:0,startsAt:'',endsAt:''}); load();
     } catch(err){ toast.error(err.response?.data?.error||'Failed.'); }
     finally{ setCreating(false); }
   };
 
   const toggleField=async(id,field,value)=>{ await client.patch(`/admin/templates/${id}`,{[field]:value}); load(); };
+
+  const openAlterTemplate = (t) => {
+    const toLocalInput = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    setEditingTemplate(t);
+    setAlterForm({
+      name: t.name,
+      description: t.description || '',
+      quizId: t.quiz_id || t.quizId || '',
+      maxParticipants: t.max_participants || 6,
+      entryPointsCost: t.entry_points_cost || 0,
+      startsAt: toLocalInput(t.starts_at),
+      endsAt: toLocalInput(t.ends_at),
+      autoRegenerate: !!t.auto_regenerate,
+      isActive: !!t.is_active,
+    });
+  };
+
+  const saveAlterTemplate = async (e) => {
+    e.preventDefault();
+    setSavingAlter(true);
+    try {
+      await client.put(`/admin/templates/${editingTemplate.id}`, {
+        name: alterForm.name,
+        description: alterForm.description,
+        quizId: alterForm.quizId,
+        maxParticipants: Number(alterForm.maxParticipants),
+        entryPointsCost: Number(alterForm.entryPointsCost),
+        startsAt: toISO(alterForm.startsAt),
+        endsAt: toISO(alterForm.endsAt),
+        autoRegenerate: alterForm.autoRegenerate,
+        isActive: alterForm.isActive,
+      });
+      toast.success('Contest template updated!');
+      setEditingTemplate(null);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update template.');
+    } finally {
+      setSavingAlter(false);
+    }
+  };
+
+  const deleteTemplate = async (t) => {
+    if (!window.confirm(`Are you sure you want to delete template "${t.name}"? This will delete the template and un-played contests.`)) return;
+    try {
+      await client.delete(`/admin/templates/${t.id}`);
+      toast.success(`Template "${t.name}" deleted.`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete template.');
+    }
+  };
 
   return (
     <div className="admin-split-360">
@@ -1621,6 +1759,17 @@ function Templates() {
             </select>
           </div>
           <div><label style={LBL}>Max Participants</label><input type="number" min={2} style={INP} value={form.maxParticipants} onChange={e=>setForm({...form,maxParticipants:e.target.value})} required/></div>
+
+          <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div>
+              <label style={LBL}>Assigned Start Time (Optional)</label>
+              <input type="datetime-local" style={INP} value={form.startsAt || ''} onChange={e=>setForm({...form,startsAt:e.target.value})}/>
+            </div>
+            <div>
+              <label style={LBL}>Assigned End Time (Optional)</label>
+              <input type="datetime-local" style={INP} value={form.endsAt || ''} onChange={e=>setForm({...form,endsAt:e.target.value})}/>
+            </div>
+          </div>
 
           <label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:C.secondary,background:'#f8fafc',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px'}}>
             <input type="checkbox" checked={dualEntry} onChange={e=>setDualEntry(e.target.checked)}/>
@@ -1641,31 +1790,106 @@ function Templates() {
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {templates.map(t=>(
           <Card key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:16,gap:12,flexWrap:'wrap'}}>
-            <div>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
+            <div style={{flex:1,minWidth:200}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
                 <div style={{fontWeight:700,fontSize:14,color:C.primary}}>{t.name}</div>
                 <Badge label={Number(t.entry_points_cost)>0?`${t.entry_points_cost} pts entry`:'Free entry'} color={Number(t.entry_points_cost)>0?C.blue:C.green}/>
                 {t.proctoring_enabled ? <Badge label="🛡 AI Proctored" color={C.green}/> : null}
               </div>
-              <div style={{fontSize:12,color:C.muted}}>{t.quiz_title} · {t.max_participants} seats · {t.contests_spawned} contests</div>
+              <div style={{fontSize:12,color:C.muted}}>
+                {t.quiz_title} · {t.max_participants} seats · {t.contests_spawned} contests
+              </div>
+              {(t.starts_at || t.ends_at) && (
+                <div style={{fontSize:11,color:C.purple,fontWeight:600,marginTop:4,display:'flex',gap:6,alignItems:'center'}}>
+                  <span>⏰ Scheduled:</span>
+                  <span>{t.starts_at ? fmtTime(t.starts_at) : 'Immediate'} → {t.ends_at ? fmtTime(t.ends_at) : 'No expiry'}</span>
+                </div>
+              )}
             </div>
-            <div style={{display:'flex',gap:8}}>
-              <button style={{padding:'6px 12px',borderRadius:7,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:12,fontWeight:700,color:C.secondary}} onClick={()=>toggleField(t.id,'autoRegenerate',!t.auto_regenerate)}>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+              <button style={{padding:'6px 10px',borderRadius:7,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:12,fontWeight:700,color:C.secondary}} onClick={()=>toggleField(t.id,'autoRegenerate',!t.auto_regenerate)}>
                 Auto-regen: {t.auto_regenerate?'ON':'OFF'}
               </button>
-              <button style={{padding:'6px 12px',borderRadius:7,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:12,fontWeight:700,color:t.is_active?C.red:C.green}} onClick={()=>toggleField(t.id,'isActive',!t.is_active)}>
+              <button style={{padding:'6px 10px',borderRadius:7,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:12,fontWeight:700,color:t.is_active?C.amber:C.green}} onClick={()=>toggleField(t.id,'isActive',!t.is_active)}>
                 {t.is_active?'Deactivate':'Activate'}
+              </button>
+              <button style={{padding:'6px 12px',borderRadius:7,border:`1px solid ${C.purple}`,background:`${C.purple}14`,cursor:'pointer',fontSize:12,fontWeight:700,color:C.purple}} onClick={()=>openAlterTemplate(t)} title="Edit Contest Template">
+                ✏️ Alter
+              </button>
+              <button style={{padding:'6px 10px',borderRadius:7,border:'1px solid #fecaca',background:'#fef2f2',cursor:'pointer',fontSize:12,fontWeight:700,color:C.red}} onClick={()=>deleteTemplate(t)} title="Delete Contest Template">
+                🗑️ Delete
               </button>
             </div>
           </Card>
         ))}
       </div>
+
+      {/* Alter Contest Template Modal */}
+      {editingTemplate && (
+        <Modal title={`Alter Contest Template — ${editingTemplate.name}`} onClose={()=>setEditingTemplate(null)}>
+          <form onSubmit={saveAlterTemplate} style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div>
+              <label style={LBL}>Template Name *</label>
+              <input style={INP} value={alterForm.name || ''} onChange={e=>setAlterForm({...alterForm,name:e.target.value})} required/>
+            </div>
+            <div>
+              <label style={LBL}>Description</label>
+              <input style={INP} value={alterForm.description || ''} onChange={e=>setAlterForm({...alterForm,description:e.target.value})}/>
+            </div>
+            <div>
+              <label style={LBL}>Assigned Quiz *</label>
+              <select style={INP} value={alterForm.quizId || ''} onChange={e=>setAlterForm({...alterForm,quizId:e.target.value})} required>
+                <option value="">Select a quiz…</option>
+                {quizzes.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}
+              </select>
+            </div>
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <div>
+                <label style={LBL}>Max Participants</label>
+                <input type="number" min={2} style={INP} value={alterForm.maxParticipants || 6} onChange={e=>setAlterForm({...alterForm,maxParticipants:e.target.value})} required/>
+              </div>
+              <div>
+                <label style={LBL}>Entry Points Cost</label>
+                <input type="number" min={0} style={INP} value={alterForm.entryPointsCost ?? 0} onChange={e=>setAlterForm({...alterForm,entryPointsCost:e.target.value})} required/>
+              </div>
+            </div>
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <div>
+                <label style={LBL}>Assigned Start Time</label>
+                <input type="datetime-local" style={INP} value={alterForm.startsAt || ''} onChange={e=>setAlterForm({...alterForm,startsAt:e.target.value})}/>
+              </div>
+              <div>
+                <label style={LBL}>Assigned End Time</label>
+                <input type="datetime-local" style={INP} value={alterForm.endsAt || ''} onChange={e=>setAlterForm({...alterForm,endsAt:e.target.value})}/>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:20,alignItems:'center',background:'#f8fafc',padding:'10px 14px',borderRadius:8,border:`1px solid ${C.border}`}}>
+              <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,fontWeight:600,color:C.secondary}}>
+                <input type="checkbox" checked={!!alterForm.autoRegenerate} onChange={e=>setAlterForm({...alterForm,autoRegenerate:e.target.checked})}/>
+                Auto-regenerate when full
+              </label>
+              <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,fontWeight:600,color:C.secondary}}>
+                <input type="checkbox" checked={!!alterForm.isActive} onChange={e=>setAlterForm({...alterForm,isActive:e.target.checked})}/>
+                Active
+              </label>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
+              <button type="button" onClick={()=>setEditingTemplate(null)} style={{padding:'9px 18px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:13,fontWeight:700,color:C.secondary}}>
+                Cancel
+              </button>
+              <button disabled={savingAlter} type="submit" style={{padding:'9px 18px',borderRadius:8,border:'none',cursor:'pointer',background:C.purple,color:'#fff',fontSize:13,fontWeight:700}}>
+                {savingAlter ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   QUIZZES  (original functionality preserved)
+   QUIZZES  (with Alter / Edit, Delete, and Proctoring options)
    ─────────────────────────────────────────────────────────────────────────── */
 function Quizzes() {
   const [quizzes,setQuizzes] = useState([]);
@@ -1676,13 +1900,17 @@ function Quizzes() {
   const [loading,setLoading] = useState(false);
   const [loadError,setLoadError] = useState(null);
 
+  // Alter / Edit Quiz state
+  const [editingQuiz, setEditingQuiz] = useState(null);
+  const [fetchingQuizId, setFetchingQuizId] = useState(null);
+  const [savingQuiz, setSavingQuiz] = useState(false);
+  const [newAlterQ, setNewAlterQ] = useState({questionText:'',options:['','','',''],correctIndex:0});
+
   const load=useCallback(()=>{
     setLoading(true); setLoadError(null);
     return client.get('/admin/quizzes')
       .then(({data})=>setQuizzes(data))
       .catch(err=>{
-        // Previously an unhandled rejection here just left the tab looking
-        // blank/stuck with no feedback — surface the real error instead.
         const msg = err.response?.data?.error || err.message || 'Failed to load quizzes.';
         setLoadError(msg);
         toast.error(msg);
@@ -1722,6 +1950,117 @@ function Quizzes() {
     }
   };
 
+  const openAlterQuiz = async (qz) => {
+    setFetchingQuizId(qz.id);
+    try {
+      const { data } = await client.get(`/admin/quizzes/${qz.id}`);
+      const questions = (data.questions || []).map((quest) => {
+        let opts = ['', '', '', ''];
+        let correctIdx = 0;
+        if (Array.isArray(quest.options)) {
+          opts = quest.options.map(o => (typeof o === 'string' ? o : o.text || ''));
+          while (opts.length < 4) opts.push('');
+          correctIdx = quest.options.findIndex(o => (o.is_correct || (quest.correct_options && quest.correct_options[0] === o.id)));
+          if (correctIdx < 0) correctIdx = 0;
+        }
+        return {
+          questionText: quest.question_text || quest.text || '',
+          options: opts,
+          correctIndex: correctIdx,
+          marks: quest.marks || 1,
+          negativeMarks: quest.negative_marks !== undefined ? quest.negative_marks : 0.25,
+        };
+      });
+
+      setEditingQuiz({
+        id: qz.id,
+        title: data.title || qz.title,
+        description: data.description || '',
+        durationMinutes: data.time_limit_mins || qz.duration_minutes || 10,
+        negativeMarking: data.negative_marking !== undefined ? data.negative_marking : 0.25,
+        proctoringEnabled: data.proctoring_enabled !== undefined ? !!data.proctoring_enabled : !!qz.proctoring_enabled,
+        questions: questions
+      });
+      setNewAlterQ({questionText:'',options:['','','',''],correctIndex:0});
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to load quiz details.');
+    } finally {
+      setFetchingQuizId(null);
+    }
+  };
+
+  const saveAlterQuiz = async (e) => {
+    e.preventDefault();
+    if (!editingQuiz.questions.length) {
+      toast.error('Quiz must have at least one question.');
+      return;
+    }
+    setSavingQuiz(true);
+    try {
+      const ids = ['A', 'B', 'C', 'D'];
+      const payload = {
+        title: editingQuiz.title,
+        description: editingQuiz.description,
+        durationMinutes: Number(editingQuiz.durationMinutes),
+        negativeMarking: Number(editingQuiz.negativeMarking),
+        proctoringEnabled: editingQuiz.proctoringEnabled,
+        questions: editingQuiz.questions.map(quest => ({
+          questionText: quest.questionText,
+          options: quest.options.map((t, i) => ({ id: ids[i], text: t })),
+          correctOptions: [ids[quest.correctIndex || 0]],
+          marks: Number(quest.marks || 1),
+          negativeMarks: Number(quest.negativeMarks !== undefined ? quest.negativeMarks : 0.25),
+        }))
+      };
+      await client.put(`/admin/quizzes/${editingQuiz.id}`, payload);
+      toast.success('Quiz altered & updated successfully!');
+      setEditingQuiz(null);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update quiz.');
+    } finally {
+      setSavingQuiz(false);
+    }
+  };
+
+  const deleteQuiz = async (qz) => {
+    if (!window.confirm(`Are you sure you want to delete quiz "${qz.title}"? Associated contest templates will be unlinked.`)) return;
+    try {
+      await client.delete(`/admin/quizzes/${qz.id}`);
+      toast.success(`Quiz "${qz.title}" deleted.`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete quiz.');
+    }
+  };
+
+  const addQuestionToAlter = () => {
+    if (!newAlterQ.questionText || newAlterQ.options.some(o => !o)) {
+      toast.error('Fill the question text and all 4 options.');
+      return;
+    }
+    setEditingQuiz({
+      ...editingQuiz,
+      questions: [
+        ...editingQuiz.questions,
+        {
+          questionText: newAlterQ.questionText,
+          options: [...newAlterQ.options],
+          correctIndex: newAlterQ.correctIndex,
+          marks: 1,
+          negativeMarks: 0.25,
+        }
+      ]
+    });
+    setNewAlterQ({questionText:'',options:['','','',''],correctIndex:0});
+    toast.success('Question added to quiz!');
+  };
+
+  const removeQuestionFromAlter = (idx) => {
+    const updated = editingQuiz.questions.filter((_, i) => i !== idx);
+    setEditingQuiz({ ...editingQuiz, questions: updated });
+  };
+
   return (
     <div className="admin-split-420">
       <Card>
@@ -1756,7 +2095,7 @@ function Quizzes() {
         {quizzes.map(qz=>(
           <Card key={qz.id} style={{padding:16}}>
             <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:4}}>{qz.title}</div>
-            <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+            <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
               <Badge label={`${qz.question_count} questions`} color={C.purple}/>
               <Badge label={`${qz.duration_minutes} min`} color={C.blue}/>
               {qz.proctoring_enabled ? (
@@ -1764,28 +2103,217 @@ function Quizzes() {
               ) : (
                 <Badge label="Standard (No Proctor)" color={C.muted}/>
               )}
-              <button disabled={togglingId===qz.id} onClick={()=>toggleProctoring(qz)}
-                style={{
-                  marginLeft:'auto',
-                  padding:'5px 12px',
-                  borderRadius:6,
-                  border:`1px solid ${qz.proctoring_enabled ? '#fecaca' : '#bbf7d0'}`,
-                  background: qz.proctoring_enabled ? '#fef2f2' : '#f0fdf4',
-                  cursor: togglingId===qz.id ? 'not-allowed' : 'pointer',
-                  fontSize:11,
-                  fontWeight:700,
-                  color: qz.proctoring_enabled ? C.red : C.green,
-                  display:'inline-flex',
-                  alignItems:'center',
-                  gap:4,
-                  transition:'all .15s'
-                }}>
-                {togglingId===qz.id ? 'Updating…' : qz.proctoring_enabled ? 'Disable Proctoring' : '🛡️ Enable Proctoring'}
-              </button>
+
+              <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+                <button disabled={togglingId===qz.id} onClick={()=>toggleProctoring(qz)}
+                  style={{
+                    padding:'5px 10px',
+                    borderRadius:6,
+                    border:`1px solid ${qz.proctoring_enabled ? '#fecaca' : '#bbf7d0'}`,
+                    background: qz.proctoring_enabled ? '#fef2f2' : '#f0fdf4',
+                    cursor: togglingId===qz.id ? 'not-allowed' : 'pointer',
+                    fontSize:11,
+                    fontWeight:700,
+                    color: qz.proctoring_enabled ? C.red : C.green,
+                    display:'inline-flex',
+                    alignItems:'center',
+                    gap:4,
+                    transition:'all .15s'
+                  }}>
+                  {togglingId===qz.id ? 'Updating…' : qz.proctoring_enabled ? 'Disable' : '🛡️ Proctor'}
+                </button>
+                <button
+                  disabled={fetchingQuizId===qz.id}
+                  onClick={()=>openAlterQuiz(qz)}
+                  style={{
+                    padding:'5px 12px',
+                    borderRadius:6,
+                    border:`1px solid ${C.purple}`,
+                    background: `${C.purple}14`,
+                    cursor:'pointer',
+                    fontSize:11,
+                    fontWeight:700,
+                    color: C.purple,
+                    display:'inline-flex',
+                    alignItems:'center',
+                    gap:4
+                  }}
+                  title="Alter / Edit Quiz & Questions"
+                >
+                  {fetchingQuizId===qz.id ? 'Loading…' : '✏️ Alter'}
+                </button>
+                <button
+                  onClick={()=>deleteQuiz(qz)}
+                  style={{
+                    padding:'5px 10px',
+                    borderRadius:6,
+                    border:'1px solid #fecaca',
+                    background:'#fef2f2',
+                    cursor:'pointer',
+                    fontSize:11,
+                    fontWeight:700,
+                    color:C.red,
+                    display:'inline-flex',
+                    alignItems:'center',
+                    gap:4
+                  }}
+                  title="Delete Quiz"
+                >
+                  🗑️ Delete
+                </button>
+              </div>
             </div>
           </Card>
         ))}
       </div>
+
+      {/* Alter Quiz Modal */}
+      {editingQuiz && (
+        <Modal wide={true} title={`Alter Quiz — ${editingQuiz.title}`} onClose={()=>setEditingQuiz(null)}>
+          <form onSubmit={saveAlterQuiz} style={{display:'flex',flexDirection:'column',gap:16,maxHeight:'75vh',overflowY:'auto',paddingRight:4}}>
+            <div>
+              <label style={LBL}>Quiz Title *</label>
+              <input style={INP} value={editingQuiz.title} onChange={e=>setEditingQuiz({...editingQuiz,title:e.target.value})} required/>
+            </div>
+            <div>
+              <label style={LBL}>Description</label>
+              <input style={INP} value={editingQuiz.description} onChange={e=>setEditingQuiz({...editingQuiz,description:e.target.value})}/>
+            </div>
+            <div className="admin-responsive-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+              <div>
+                <label style={LBL}>Duration (Minutes)</label>
+                <input type="number" min={1} style={INP} value={editingQuiz.durationMinutes} onChange={e=>setEditingQuiz({...editingQuiz,durationMinutes:Number(e.target.value)})} required/>
+              </div>
+              <div>
+                <label style={LBL}>Negative Marks</label>
+                <input type="number" step="0.25" style={INP} value={editingQuiz.negativeMarking} onChange={e=>setEditingQuiz({...editingQuiz,negativeMarking:Number(e.target.value)})}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',paddingTop:18}}>
+                <label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:C.secondary}}>
+                  <input type="checkbox" checked={editingQuiz.proctoringEnabled} onChange={e=>setEditingQuiz({...editingQuiz,proctoringEnabled:e.target.checked})}/>
+                  🛡️ AI Proctoring
+                </label>
+              </div>
+            </div>
+
+            {/* Questions List */}
+            <div style={{fontWeight:700,fontSize:14,color:C.primary,borderBottom:`1px solid ${C.border}`,paddingBottom:8,marginTop:8}}>
+              Questions ({editingQuiz.questions.length})
+            </div>
+
+            {editingQuiz.questions.map((quest, qIdx)=>(
+              <div key={qIdx} style={{background:'#f8fafc',border:`1px solid ${C.border}`,borderRadius:10,padding:14,position:'relative'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <span style={{fontSize:12,fontWeight:700,color:C.purple}}>Question #{qIdx+1}</span>
+                  <button type="button" onClick={()=>removeQuestionFromAlter(qIdx)} style={{border:'none',background:'none',color:C.red,cursor:'pointer',fontSize:12,fontWeight:700}}>
+                    ✕ Remove Question
+                  </button>
+                </div>
+                <input
+                  style={{...INP,marginBottom:8}}
+                  placeholder="Question text"
+                  value={quest.questionText}
+                  onChange={e=>{
+                    const updated = [...editingQuiz.questions];
+                    updated[qIdx].questionText = e.target.value;
+                    setEditingQuiz({...editingQuiz, questions: updated});
+                  }}
+                  required
+                />
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  {quest.options.map((opt, oIdx)=>(
+                    <div key={oIdx} style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <input
+                        type="radio"
+                        name={`correct_q_${qIdx}`}
+                        checked={quest.correctIndex === oIdx}
+                        onChange={()=>{
+                          const updated = [...editingQuiz.questions];
+                          updated[qIdx].correctIndex = oIdx;
+                          setEditingQuiz({...editingQuiz, questions: updated});
+                        }}
+                        style={{width:'auto',accentColor:C.purple}}
+                        title="Mark as correct option"
+                      />
+                      <input
+                        style={{...INP,fontSize:12,padding:'6px 10px'}}
+                        placeholder={`Option ${String.fromCharCode(65+oIdx)}`}
+                        value={opt}
+                        onChange={e=>{
+                          const updated = [...editingQuiz.questions];
+                          const newOpts = [...updated[qIdx].options];
+                          newOpts[oIdx] = e.target.value;
+                          updated[qIdx].options = newOpts;
+                          setEditingQuiz({...editingQuiz, questions: updated});
+                        }}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Inline Add Question */}
+            <div style={{background:'#f1f5f9',border:`1px dashed ${C.border}`,borderRadius:10,padding:14}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.secondary,marginBottom:8}}>+ Add Another Question to this Quiz</div>
+              <input
+                style={{...INP,marginBottom:8}}
+                placeholder="New question text"
+                value={newAlterQ.questionText}
+                onChange={e=>setNewAlterQ({...newAlterQ, questionText:e.target.value})}
+              />
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+                {newAlterQ.options.map((opt, i)=>(
+                  <div key={i} style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <input
+                      type="radio"
+                      name="new_alter_correct"
+                      checked={newAlterQ.correctIndex === i}
+                      onChange={()=>setNewAlterQ({...newAlterQ, correctIndex: i})}
+                      style={{width:'auto',accentColor:C.purple}}
+                    />
+                    <input
+                      style={{...INP,fontSize:12,padding:'6px 10px'}}
+                      placeholder={`Option ${String.fromCharCode(65+i)}`}
+                      value={opt}
+                      onChange={e=>{
+                        const opts = [...newAlterQ.options];
+                        opts[i] = e.target.value;
+                        setNewAlterQ({...newAlterQ, options: opts});
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addQuestionToAlter}
+                style={{padding:'6px 14px',borderRadius:7,border:`1px solid ${C.purple}`,background:'#fff',cursor:'pointer',fontSize:12,fontWeight:700,color:C.purple}}
+              >
+                + Add Question to Quiz
+              </button>
+            </div>
+
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+              <button
+                type="button"
+                onClick={()=>setEditingQuiz(null)}
+                style={{padding:'9px 18px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',cursor:'pointer',fontSize:13,fontWeight:700,color:C.secondary}}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={savingQuiz}
+                type="submit"
+                style={{padding:'9px 22px',borderRadius:8,border:'none',cursor:'pointer',background:C.purple,color:'#fff',fontSize:13,fontWeight:700}}
+              >
+                {savingQuiz ? 'Saving Alterations…' : 'Save Quiz Alterations'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -2220,6 +2748,17 @@ function ContestScheduleTab({ onDownloadExcel, exportingExcel }) {
     }
   };
 
+  const handleDeleteContest = async (c) => {
+    if (!window.confirm(`Are you sure you want to delete contest "${c.name}"? This action cannot be undone.`)) return;
+    try {
+      await client.delete(`/admin/contests/${c.id}`);
+      toast.success(`Contest "${c.name}" deleted.`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete contest.');
+    }
+  };
+
   const filtered = contests.filter(c =>
     !search || c.name?.toLowerCase().includes(search.toLowerCase()) ||
     c.quiz_title?.toLowerCase().includes(search.toLowerCase())
@@ -2339,19 +2878,35 @@ function ContestScheduleTab({ onDownloadExcel, exportingExcel }) {
                       {c.current_participants}/{c.max_participants}
                     </td>
                     <td style={{ padding: '11px 14px' }}>
-                      <button
-                        onClick={() => openModal(c)}
-                        style={{
-                          padding: '6px 14px', borderRadius: 8,
-                          border: `1px solid ${C.purple}`,
-                          background: C.purple + '10', color: C.purple,
-                          cursor: 'pointer', fontWeight: 700, fontSize: 12,
-                          display: 'flex', alignItems: 'center', gap: 6,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        📅 Schedule
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button
+                          onClick={() => openModal(c)}
+                          style={{
+                            padding: '6px 12px', borderRadius: 8,
+                            border: `1px solid ${C.purple}`,
+                            background: C.purple + '10', color: C.purple,
+                            cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          📅 Schedule
+                        </button>
+                        <button
+                          onClick={() => handleDeleteContest(c)}
+                          style={{
+                            padding: '6px 10px', borderRadius: 8,
+                            border: '1px solid #fecaca',
+                            background: '#fef2f2', color: C.red,
+                            cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Delete Contest"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -13,12 +13,22 @@ async function getQuizForAttempt(req, res, next) {
       await query(`SELECT * FROM contests WHERE id = $1`, [contestId])
     ).rows[0];
     if (!contest) return res.status(404).json({ error: 'Contest not found.' });
-    if (!['live', 'locked'].includes(contest.status)) {
-      return res.status(400).json({ error: 'This contest is not currently live.' });
+    // ── Time-window check & status enforcement ─────────────────────────────────
+    const now = Date.now();
+    const hasScheduledWindow = !!(contest.starts_at || contest.ends_at);
+    const isWithinWindow = (!contest.starts_at || now >= new Date(contest.starts_at).getTime()) &&
+                           (!contest.ends_at || now <= new Date(contest.ends_at).getTime());
+
+    if (!['live', 'locked'].includes(contest.status) && !(isWithinWindow && hasScheduledWindow)) {
+      if (contest.status === 'completed') {
+        return res.status(400).json({ error: 'This contest has already ended.' });
+      }
+      if (contest.status === 'cancelled') {
+        return res.status(400).json({ error: 'This contest was cancelled.' });
+      }
+      return res.status(400).json({ error: 'This contest is not currently open for play.' });
     }
 
-    // ── Time-window enforcement ────────────────────────────────────────────────
-    const now = Date.now();
     if (contest.starts_at && now < new Date(contest.starts_at).getTime()) {
       const startsIn = new Date(contest.starts_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
       return res.status(403).json({

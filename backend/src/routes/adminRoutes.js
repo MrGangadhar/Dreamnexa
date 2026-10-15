@@ -4,6 +4,7 @@ const adminController = require('../controllers/adminController');
 const newsController = require('../controllers/newsController');
 const govtJobsController = require('../controllers/govtJobsController');
 const proctoringController = require('../controllers/proctoringController');
+const backupController = require('../controllers/backupController');
 
 const router = express.Router();
 
@@ -14,14 +15,20 @@ router.get('/dashboard', adminController.getDashboardStats);
 router.get('/templates', adminController.listTemplates);
 router.post('/templates', adminController.createTemplate);
 router.patch('/templates/:id', adminController.updateTemplate);
+router.put('/templates/:id', adminController.updateTemplate);
+router.delete('/templates/:id', adminController.deleteTemplate);
 
 // Contest scheduling (admin can set time/date per contest)
 router.get('/contests', adminController.listAllContests);
 router.patch('/contests/:id/schedule', adminController.scheduleContest);
+router.delete('/contests/:id', adminController.deleteContest);
 
 router.get('/quizzes', adminController.listQuizzes);
+router.get('/quizzes/:id', adminController.getQuizDetail);
 router.post('/quizzes', adminController.createQuiz);
 router.patch('/quizzes/:id', adminController.updateQuiz);
+router.put('/quizzes/:id', adminController.alterQuiz);
+router.delete('/quizzes/:id', adminController.deleteQuiz);
 
 router.get('/users', adminController.listUsers);
 router.get('/users/:id', adminController.getUserDetails);
@@ -62,5 +69,10 @@ router.get('/jobs',        govtJobsController.listAll);
 router.post('/jobs',       govtJobsController.createJob);
 router.put('/jobs/:id',    govtJobsController.updateJob);
 router.delete('/jobs/:id', govtJobsController.deleteJob);
+
+// ── Backup & Google Sheet Sync ───────────────────────────────────────────────
+router.get('/backup/excel',        backupController.downloadExcelBackup);
+router.post('/backup/sync-sheets', backupController.syncGoogleSheets);
+router.post('/sync-sheets',        backupController.syncGoogleSheets);
 
 module.exports = router;

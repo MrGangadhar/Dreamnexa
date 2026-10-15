@@ -69,6 +69,15 @@ export default function ContestDetail() {
   const isCompleted = contest.status === 'completed';
   const isCancelled = contest.status === 'cancelled';
 
+  const now = new Date();
+  const startsAt = contest.starts_at ? new Date(contest.starts_at) : null;
+  const endsAt = contest.ends_at ? new Date(contest.ends_at) : null;
+  const hasWindow = Boolean(startsAt || endsAt);
+  const isBeforeWindow = Boolean(startsAt && now < startsAt);
+  const isAfterWindow = Boolean(endsAt && now > endsAt);
+  const isWithinWindow = (!startsAt || now >= startsAt) && (!endsAt || now <= endsAt);
+  const canPlayNow = isLive || (hasWindow && isWithinWindow && !isCompleted && !isCancelled);
+
   const join = async () => {
     if (!user) { navigate('/login'); return; }
     setError('');
@@ -130,14 +139,34 @@ export default function ContestDetail() {
     }
 
     if (joinedByMe) {
-      if (isLive) {
+      if (canPlayNow) {
         return (
           <button
             style={{ ...btnStyle, background: '#ef4444', color: '#fff', boxShadow: '0 4px 12px rgba(239,68,68,0.25)' }}
             onClick={() => navigate(`/contests/${id}/play`)}
           >
-            🚀 Start Contest
+            🚀 Start Contest Now
           </button>
+        );
+      }
+      if (isBeforeWindow) {
+        return (
+          <div style={{
+            background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12,
+            padding: '12px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#1e40af'
+          }}>
+            ⏳ Registered! Opens {startsAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        );
+      }
+      if (isAfterWindow) {
+        return (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12,
+            padding: '12px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#991b1b'
+          }}>
+            🛑 Quiz window has closed
+          </div>
         );
       }
       return (
@@ -147,6 +176,14 @@ export default function ContestDetail() {
         }}>
           ✅ Registered
         </div>
+      );
+    }
+
+    if (isAfterWindow) {
+      return (
+        <button style={{ ...btnStyle, background: '#e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }} disabled>
+          Contest Window Closed
+        </button>
       );
     }
 
@@ -291,6 +328,31 @@ export default function ContestDetail() {
               </div>
             )}
             
+            {/* Scheduled Time Window Banner */}
+            {hasWindow && (
+              <div style={{
+                background: isWithinWindow ? '#ecfdf5' : isBeforeWindow ? '#eff6ff' : '#fef2f2',
+                border: `1px solid ${isWithinWindow ? '#a7f3d0' : isBeforeWindow ? '#bfdbfe' : '#fecaca'}`,
+                borderRadius: 16,
+                padding: '14px 18px',
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+              }}>
+                <div style={{ fontSize: 26, flexShrink: 0 }}>{isWithinWindow ? '🟢' : isBeforeWindow ? '⏰' : '🛑'}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: isWithinWindow ? '#065f46' : isBeforeWindow ? '#1e40af' : '#991b1b', marginBottom: 2 }}>
+                    {isWithinWindow ? 'Live Now — Quiz Window is Open!' : isBeforeWindow ? 'Scheduled Quiz Time Frame' : 'Contest Window Ended'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.45 }}>
+                    {startsAt ? `Start: ${startsAt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })} at ${startsAt.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}` : ''}
+                    {endsAt ? ` · End: ${endsAt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })} at ${endsAt.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}` : ''}
+                    {isBeforeWindow ? ' (All registered students can attend simultaneously during this assigned window)' : ''}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Spot Status */}
             <div style={{ background: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 1px 6px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Spot Status</h3>

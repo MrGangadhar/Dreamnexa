@@ -59,6 +59,27 @@ export default function ContestCard({ contest }) {
               fontSize: 12, color: '#64748b', marginTop: 2,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{contest.quiz_title}</div>
+            {(contest.starts_at || contest.ends_at) && (
+              <div style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#4338ca',
+                background: '#e0e7ff',
+                padding: '3px 7px',
+                borderRadius: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: 4,
+              }}>
+                <span>⏰</span>
+                <span>
+                  {contest.starts_at ? new Date(contest.starts_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''} · {' '}
+                  {contest.starts_at ? new Date(contest.starts_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Open'}
+                  {contest.ends_at ? ` – ${new Date(contest.ends_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                </span>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {Boolean(contest.proctoring_enabled) && (
