@@ -16,7 +16,15 @@ import {
 } from 'react-icons/fi';
 import { FaBookmark } from 'react-icons/fa';
 import { formatDistanceToNow } from '../../utils/dateUtils';
-import { estimateReadTime, getCategoryEmoji, getYouTubeThumbnail, resolveImageUrl } from '../../utils/newsUtils';
+import {
+  estimateReadTime,
+  getCategoryEmoji,
+  getYouTubeThumbnail,
+  getYouTubeEmbedUrl,
+  resolveImageUrl,
+  resolveArticleThumbnail,
+  getCategoryFallbackImage,
+} from '../../utils/newsUtils';
 import AdBanner from '../AdBanner';
 
 /**
@@ -69,43 +77,6 @@ function sanitizeHTML(html) {
   return el.innerHTML;
 }
 
-/**
- * Extract YouTube embed URL strictly from valid YouTube URL formats.
- * Returns null for any non-YouTube URL to prevent embedding internal site pages.
- */
-function getYouTubeEmbedUrl(url) {
-  if (!url || typeof url !== 'string') return null;
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-
-  // Never attempt to embed internal app routes or local paths
-  if (trimmed.startsWith('/') || trimmed.includes('localhost') || trimmed.includes('127.0.0.1')) {
-    return null;
-  }
-
-  try {
-    const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-    if (!u.hostname.includes('youtube.com') && !u.hostname.includes('youtu.be')) {
-      return null;
-    }
-    // youtube.com/watch?v=xxx
-    if (u.hostname.includes('youtube.com')) {
-      const v = u.searchParams.get('v');
-      if (v) return `https://www.youtube.com/embed/${v}`;
-      if (u.pathname.includes('/embed/')) return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
-      if (u.pathname.includes('/shorts/')) {
-        const shortId = u.pathname.split('/shorts/')[1]?.split('/')[0];
-        if (shortId) return `https://www.youtube.com/embed/${shortId}`;
-      }
-    }
-    // youtu.be/xxx
-    if (u.hostname === 'youtu.be') {
-      const id = u.pathname.replace(/^\//, '').split('?')[0];
-      if (id) return `https://www.youtube.com/embed/${id}`;
-    }
-  } catch { /* ignore */ }
-  return null;
-}
 
 /**
  * @param {Object}   article       — news article object
@@ -138,11 +109,13 @@ export default function NewsDetailModal({
 
   if (!article) return null;
 
-  const isVlog = article.articleType === 'vlog';
+  const isVlog = article.articleType === 'vlog' || article.article_type === 'vlog';
   const readTime    = estimateReadTime(article.content || article.description || '');
   const publishedAgo = formatDistanceToNow(article.publishedAt);
   const emoji       = getCategoryEmoji(article._category || article.category);
-  const embedUrl    = isVlog ? getYouTubeEmbedUrl(article.vlogUrl) : null;
+  const vlogUrl     = article.vlogUrl || article.vlog_url;
+  const embedUrl    = isVlog ? getYouTubeEmbedUrl(vlogUrl) : null;
+  const coverThumb  = resolveArticleThumbnail(article);
 
   return (
     <AnimatePresence>
@@ -216,13 +189,21 @@ export default function NewsDetailModal({
                 }}
               />
             </div>
-          ) : (resolveImageUrl(article.urlToImage) || (isVlog ? getYouTubeThumbnail(article.vlogUrl) : null)) ? (
+          ) : coverThumb ? (
             <img
-              src={resolveImageUrl(article.urlToImage) || getYouTubeThumbnail(article.vlogUrl)}
+              src={coverThumb}
               alt={article.title}
               className="detail-cover-img"
               loading="lazy"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const fallback = getCategoryFallbackImage(article._category || article.category, isVlog);
+                if (e.target.src !== fallback) {
+                  e.target.src = fallback;
+                } else {
+                  e.target.style.display = 'none';
+                }
+              }}
               style={{ width: '100%', height: '320px', objectFit: 'cover', objectPosition: 'center', display: 'block', borderRadius: '12px' }}
             />
           ) : (
@@ -303,13 +284,21 @@ export default function NewsDetailModal({
                       style={{ cursor: 'pointer' }}
                       onClick={() => {/* parent handles navigation */}}
                     >
-                      {(resolveImageUrl(rel.urlToImage) || (rel.articleType === 'vlog' ? getYouTubeThumbnail(rel.vlogUrl) : null)) ? (
+                      {resolveArticleThumbnail(rel) ? (
                         <img
-                          src={resolveImageUrl(rel.urlToImage) || getYouTubeThumbnail(rel.vlogUrl)}
+                          src={resolveArticleThumbnail(rel)}
                           alt={rel.title}
                           className="related-img"
                           loading="lazy"
-                          onError={(e) => { e.target.style.display = 'none'; }}
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            const fallback = getCategoryFallbackImage(rel.category, rel.articleType === 'vlog' || rel.article_type === 'vlog');
+                            if (e.target.src !== fallback) {
+                              e.target.src = fallback;
+                            } else {
+                              e.target.style.display = 'none';
+                            }
+                          }}
                           style={{ width: '80px', height: '60px', objectFit: 'cover', objectPosition: 'center', borderRadius: '8px', flexShrink: 0 }}
                         />
                       ) : (

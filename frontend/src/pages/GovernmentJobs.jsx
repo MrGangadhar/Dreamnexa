@@ -4,13 +4,7 @@ import toast from 'react-hot-toast';
 import '../styles/govtJobs.css';
 import { INDIAN_STATES, FALLBACK_SAMPLE_JOBS } from '../data/govtJobsData';
 import { useSEO } from '../hooks/useSEO';
-
-function getYouTubeEmbedUrl(url) {
-  if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
-}
+import { getYouTubeEmbedUrl } from '../utils/newsUtils';
 
 export default function GovernmentJobs() {
   useSEO({

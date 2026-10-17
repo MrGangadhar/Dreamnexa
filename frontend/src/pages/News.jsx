@@ -163,9 +163,9 @@ export default function News({ defaultCategory = 'all' }) {
   const error = query.error;
   const errorType = error ? classifyError(error) : null;
 
-  /* ── Carousel articles (featured or first 5 with images) ─────────────*/
+  /* ── Carousel articles (featured or first 5 with images/vlogs) ──────*/
   const carouselArticles = articles
-    .filter((a) => a.urlToImage || (a.articleType === 'vlog' && a.vlogUrl))
+    .filter((a) => a.urlToImage || a.image_url || a.articleType === 'vlog' || a.article_type === 'vlog' || a.vlogUrl || a.vlog_url)
     .sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0))
     .slice(0, 5);
 

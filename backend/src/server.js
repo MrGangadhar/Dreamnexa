@@ -6,6 +6,7 @@ const { startScheduledBackups, performBackup } = require('./utils/autoBackup');
 const { initSocket } = require('./socket');
 const { runMigrations } = require('./db/migrate');
 const { seedIfEmpty } = require('./db/seed');
+const { seedNewsIfNeeded } = require('./db/seedNewsProduction');
 
 const PORT = process.env.PORT || 5000;
 
@@ -20,6 +21,12 @@ async function bootstrapDatabase() {
       await seedIfEmpty();
     } catch (err) {
       console.error('[seed] seedIfEmpty failed (continuing to boot anyway):', err.message);
+    }
+    // Always ensure curated news articles and vlogs are present (safe to re-run)
+    try {
+      await seedNewsIfNeeded();
+    } catch (err) {
+      console.error('[seed] seedNewsIfNeeded failed (continuing to boot anyway):', err.message);
     }
   }
 }

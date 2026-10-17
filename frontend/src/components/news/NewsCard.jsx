@@ -13,7 +13,7 @@
  * Hover: card lifts + image zooms (CSS transition).
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiShare2, FiBookmark, FiUser, FiClock, FiExternalLink, FiPlay } from 'react-icons/fi';
 import { FaBookmark } from 'react-icons/fa';
@@ -24,6 +24,8 @@ import {
   getCategoryLabel,
   getYouTubeThumbnail,
   resolveImageUrl,
+  resolveArticleThumbnail,
+  getCategoryFallbackImage,
 } from '../../utils/newsUtils';
 
 const cardVariants = {
@@ -47,16 +49,30 @@ export default function NewsCard({
   onClick,
   category,
 }) {
-  const [imgError, setImgError] = useState(false);
-
-  const isVlog = article.articleType === 'vlog';
+  const isVlog = article.articleType === 'vlog' || article.article_type === 'vlog';
   const readTime    = estimateReadTime(article.content || article.description || '');
   const publishedAgo = formatDistanceToNow(article.publishedAt);
   const displayCategory = category || article.category;
   const categoryLabel = getCategoryLabel(displayCategory || '');
   const emoji        = getCategoryEmoji(displayCategory);
   const showCategory = displayCategory && displayCategory !== 'all';
-  const imageUrl     = resolveImageUrl(article.urlToImage) || (isVlog ? getYouTubeThumbnail(article.vlogUrl) : null);
+
+  const [imgSrc, setImgSrc] = useState(() => resolveArticleThumbnail(article));
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(resolveArticleThumbnail(article));
+    setImgFailed(false);
+  }, [article.id, article.urlToImage, article.image_url, article.vlogUrl, article.vlog_url]);
+
+  const handleImageError = () => {
+    const fallback = getCategoryFallbackImage(displayCategory, isVlog);
+    if (imgSrc !== fallback) {
+      setImgSrc(fallback);
+    } else {
+      setImgFailed(true);
+    }
+  };
 
   return (
     <motion.article
@@ -71,12 +87,13 @@ export default function NewsCard({
     >
       {/* ── Image ──────────────────────────────────────────────── */}
       <div className="news-card-img-wrap">
-        {imageUrl && !imgError ? (
+        {imgSrc && !imgFailed ? (
           <img
-            src={imageUrl}
+            src={imgSrc}
             alt={article.title}
             loading="lazy"
-            onError={() => setImgError(true)}
+            referrerPolicy="no-referrer"
+            onError={handleImageError}
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
           />
         ) : (

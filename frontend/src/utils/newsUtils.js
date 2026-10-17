@@ -110,42 +110,138 @@ export function classifyError(error) {
 }
 
 /**
- * Extract YouTube thumbnail from various YouTube URL formats.
+ * Extract YouTube 11-character video ID from any YouTube URL format:
+ * - https://www.youtube.com/watch?v=VIDEO_ID
+ * - https://youtu.be/VIDEO_ID?si=...
+ * - https://www.youtube.com/shorts/VIDEO_ID
+ * - https://www.youtube.com/live/VIDEO_ID
+ * - https://www.youtube.com/embed/VIDEO_ID
+ * - https://m.youtube.com/watch?v=VIDEO_ID
+ * - Plain 11-char ID
  * @param {string} url
  * @returns {string|null}
  */
-export function getYouTubeThumbnail(url) {
+export function getYouTubeVideoId(url) {
   if (!url || typeof url !== 'string') return null;
-  try {
-    const trimmed = url.trim();
-    if (!trimmed) return null;
-    const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-    let videoId = null;
-    if (u.hostname.includes('youtube.com')) {
-      videoId = u.searchParams.get('v');
-    } else if (u.hostname === 'youtu.be') {
-      videoId = u.pathname.replace(/^\//, '');
-    }
-    if (videoId) {
-      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-    }
-  } catch {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.toUpperCase() === 'NA' || trimmed === 'null' || trimmed === 'undefined') {
     return null;
   }
+
+  // Common regex matching standard, share, shorts, live, and embed links
+  const patterns = [
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i,
+    /^[a-zA-Z0-9_-]{11}$/,
+  ];
+
+  for (const p of patterns) {
+    const match = trimmed.match(p);
+    if (match && match[1]) return match[1];
+    if (match && !match[1] && match[0].length === 11) return match[0];
+  }
+
+  // Backup URL parser
+  try {
+    const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    if (u.searchParams.has('v')) return u.searchParams.get('v');
+    const pathParts = u.pathname.split('/').filter(Boolean);
+    if (u.hostname === 'youtu.be' && pathParts.length > 0) return pathParts[0].split('?')[0];
+    if (pathParts.includes('shorts') || pathParts.includes('embed') || pathParts.includes('live')) {
+      const idx = Math.max(pathParts.indexOf('shorts'), pathParts.indexOf('embed'), pathParts.indexOf('live'));
+      if (pathParts[idx + 1]) return pathParts[idx + 1].split('?')[0];
+    }
+  } catch {}
+
   return null;
+}
+
+/**
+ * Extract YouTube thumbnail from various YouTube URL formats.
+ * Uses Google's fast i.ytimg.com CDN which supports no-referrer and edge caching.
+ * @param {string} url
+ * @param {'hq'|'mq'|'maxres'} [quality='hq']
+ * @returns {string|null}
+ */
+export function getYouTubeThumbnail(url, quality = 'hq') {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return null;
+  const file = quality === 'maxres' ? 'maxresdefault.jpg' : quality === 'mq' ? 'mqdefault.jpg' : 'hqdefault.jpg';
+  return `https://i.ytimg.com/vi/${videoId}/${file}`;
+}
+
+/**
+ * Generate a clean YouTube embed URL from any YouTube URL format.
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function getYouTubeEmbedUrl(url) {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return null;
+  return `https://www.youtube.com/embed/${videoId}`;
+}
+
+/**
+ * Curated high-resolution, reliable CDN imagery for articles and vlogs when an uploaded
+ * image is missing (e.g. 404 from ephemeral Cloud Run container) or when no image was supplied.
+ * @param {string} [category='']
+ * @param {boolean} [isVlog=false]
+ * @returns {string}
+ */
+export function getCategoryFallbackImage(category = '', isVlog = false) {
+  const cat = (category || '').toLowerCase();
+
+  if (isVlog) {
+    if (cat === 'jobs' || cat === 'government') {
+      // Karnataka / State / Central Govt recruitment & guidance vlog
+      return 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80';
+    }
+    if (cat === 'education') {
+      // Online masterclass, quiz tactics, syllabus walkthrough
+      return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+    }
+    if (cat === 'technology' || cat === 'ai') {
+      return 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80';
+    }
+    // Default video guidance / educational vlog cover
+    return 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&auto=format&fit=crop&q=80';
+  }
+
+  // General news category fallbacks
+  switch (cat) {
+    case 'jobs':
+    case 'government':
+      return 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80';
+    case 'education':
+      return 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&auto=format&fit=crop&q=80';
+    case 'technology':
+    case 'ai':
+      return 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80';
+    case 'economy':
+    case 'business':
+      return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80';
+    case 'science':
+      return 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80';
+    case 'sports':
+      return 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80';
+    default:
+      return 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&auto=format&fit=crop&q=80';
+  }
 }
 
 /**
  * Resolve an article image URL.
  * Normalizes backend localhost URLs to relative /uploads so Vite dev proxy handles it directly,
  * preventing cross-origin resource policy blocks.
+ * Filters out invalid/placeholder strings like 'NA', 'null', 'undefined'.
  * @param {string} url
  * @returns {string}
  */
 export function resolveImageUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
-  if (!trimmed) return '';
+  if (!trimmed || trimmed.toUpperCase() === 'NA' || trimmed === 'null' || trimmed === 'undefined') {
+    return '';
+  }
 
   // If localhost:5000/uploads or 127.0.0.1:5000/uploads, convert to relative /uploads
   if (/^https?:\/\/(localhost|127\.0\.0\.1):5000\/uploads\//i.test(trimmed)) {
@@ -159,5 +255,30 @@ export function resolveImageUrl(url) {
 
   // If relative path like uploads/... or /uploads/...
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Resolves the best available thumbnail for any news article or vlog.
+ * Guarantees a working thumbnail for vlogs and articles even if user-uploaded images
+ * are missing or 404 from ephemeral Cloud Run containers.
+ * @param {Object} article
+ * @returns {string}
+ */
+export function resolveArticleThumbnail(article) {
+  if (!article) return '';
+  const isVlog = article.articleType === 'vlog' || article.article_type === 'vlog';
+  const vlogUrl = article.vlogUrl || article.vlog_url;
+  const rawImage = article.urlToImage || article.image_url || article.imageUrl;
+
+  // 1. If it's a vlog and has a valid YouTube URL, prefer the real YouTube thumbnail
+  const ytThumb = isVlog ? getYouTubeThumbnail(vlogUrl) : null;
+  if (ytThumb) return ytThumb;
+
+  // 2. If a custom uploaded image exists and is not an invalid/placeholder string
+  const resolvedImg = resolveImageUrl(rawImage);
+  if (resolvedImg) return resolvedImg;
+
+  // 3. Fallback to curated image for the category
+  return getCategoryFallbackImage(article.category, isVlog);
 }
 

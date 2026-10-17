@@ -13,7 +13,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 import { formatDistanceToNow } from '../../utils/dateUtils';
-import { getCategoryEmoji, getYouTubeThumbnail, resolveImageUrl } from '../../utils/newsUtils';
+import {
+  getCategoryEmoji,
+  getYouTubeThumbnail,
+  resolveImageUrl,
+  resolveArticleThumbnail,
+  getCategoryFallbackImage,
+} from '../../utils/newsUtils';
 
 const SLIDE_INTERVAL = 5000; // ms
 
@@ -51,8 +57,9 @@ export default function BreakingNewsCarousel({ articles = [], onCardClick }) {
       onMouseLeave={() => setPaused(false)}
     >
       {articles.map((article, i) => {
+        const isVlog = article.articleType === 'vlog' || article.article_type === 'vlog';
         const emoji = getCategoryEmoji(article._category || article.category);
-        const imageUrl = resolveImageUrl(article.urlToImage) || (article.articleType === 'vlog' ? getYouTubeThumbnail(article.vlogUrl) : null);
+        const imageUrl = resolveArticleThumbnail(article);
         return (
           <div
             key={article.url || i}
@@ -67,7 +74,15 @@ export default function BreakingNewsCarousel({ articles = [], onCardClick }) {
                 src={imageUrl}
                 alt={article.title}
                 loading={i === 0 ? 'eager' : 'lazy'}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const fallback = getCategoryFallbackImage(article._category || article.category, isVlog);
+                  if (e.target.src !== fallback) {
+                    e.target.src = fallback;
+                  } else {
+                    e.target.style.display = 'none';
+                  }
+                }}
               />
             ) : (
               <div className="carousel-img-fallback">{emoji}</div>

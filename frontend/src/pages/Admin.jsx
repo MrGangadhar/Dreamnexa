@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import client from '../api/client';
 import toast from 'react-hot-toast';
-import { resolveImageUrl, getYouTubeThumbnail } from '../utils/newsUtils';
+import { resolveImageUrl, getYouTubeThumbnail, resolveArticleThumbnail, getCategoryFallbackImage } from '../utils/newsUtils';
 import GovtJobsManager from '../components/admin/GovtJobsManager';
 import CurrentAffairsManager from '../components/admin/CurrentAffairsManager';
 
@@ -2640,17 +2640,24 @@ function NewsManager() {
           {articles.map(a=>(
             <Card key={a.id} style={{display:'flex',gap:14,padding:14,opacity:a.is_published?1:.6,borderLeft:`3px solid ${a.is_featured?'#f59e0b':C.border}`}}>
               {(() => {
-                const thumb = resolveImageUrl(a.image_url) || (a.article_type === 'vlog' ? getYouTubeThumbnail(a.vlog_url) : null);
+                const isVlog = a.article_type === 'vlog' || a.articleType === 'vlog';
+                const thumb = resolveArticleThumbnail(a);
                 return (
                   <div style={{width:64,height:64,borderRadius:8,flexShrink:0,overflow:'hidden',background:'#f1f5f9',border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,position:'relative'}}>
                     {thumb ? (
                       <img
                         src={thumb}
                         alt={a.title}
+                        referrerPolicy="no-referrer"
                         style={{width:'100%',height:'100%',objectFit:'cover'}}
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                          const fallback = getCategoryFallbackImage(a.category, isVlog);
+                          if (e.target.src !== fallback) {
+                            e.target.src = fallback;
+                          } else {
+                            e.target.style.display = 'none';
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}

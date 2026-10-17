@@ -5,6 +5,10 @@
       "destination": "https://dreamnexa-backend-549681025567.asia-south1.run.app/api/$1"
     },
     {
+      "source": "/uploads/(.*)",
+      "destination": "https://dreamnexa-backend-549681025567.asia-south1.run.app/uploads/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
